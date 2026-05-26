@@ -34,7 +34,28 @@ HEB_DOW = {6: "א", 0: "ב", 1: "ג", 2: "ד", 3: "ה", 4: "ו", 5: "ש"}
 HEB_MONTH = {6: "יוני", 7: "יולי", 8: "אוגוסט", 9: "ספטמבר"}
 
 NAVY = "#1F4E78"; GRAY = "#D9E1F2"; YELLOW = "#FFFF00"
-ORANGE = "#FFC000"; WHITE = "#FFFFFF"
+ORANGE = "#FFC000"; WHITE = "#FFFFFF"; ALERT = "#FF5050"
+STATUS_COLORS = {
+    "בסיס": "#BDD7EE", "בית": "#C6EFCE", "חופשה": "#A9D08E",
+    "גימלים": "#FFC7CE", "קורס": "#B4A7D6", "ת״ש": "#F8CBAD",
+}
+MIN_BASE, MIN_NESHEK, MIN_AFSANA = 12, 2, 2
+
+
+def demo_status(i, d):
+    if d in HOLIDAYS:
+        return "בית" if i % 3 != 0 else "בסיס"
+    if d.weekday() == 5:
+        return "בית" if i % 2 == 0 else "בסיס"
+    if i == 6:
+        return "חופשה"
+    if i == 10:
+        return "גימלים"
+    if i == 13:
+        return "קורס"
+    if i == 18 and d.day % 2 == 0:
+        return "ת״ש"
+    return "בסיס"
 
 
 def he(s):
@@ -108,6 +129,70 @@ def render_month(m, fname):
     print("נשמר:", fname)
 
 
+def render_demo(fname):
+    days = [date(2026, 9, d) for d in range(7, 22)]  # 7-21.9 (כולל חגים)
+    roles = [r for _, r in SOLDIERS]
+    total_rows = 3
+    nrows = len(SOLDIERS) + 1 + total_rows
+    cw_name, cw_role, cw_day = 2.6, 1.7, 0.62
+    table_w = cw_name + cw_role + cw_day * len(days)
+    rh = 0.34
+    fig, ax = plt.subplots(figsize=(table_w + 0.3, rh * nrows + 0.9))
+    ax.set_xlim(0, table_w); ax.set_ylim(0, rh * nrows); ax.axis("off")
+    x_name = table_w - cw_name; x_role = x_name - cw_role
+    top = rh * nrows
+
+    def cell(x, y, w, text, bg, fg="#000000", bold=False, size=8):
+        ax.add_patch(Rectangle((x, y), w, rh, facecolor=bg,
+                               edgecolor="#9AA7BD", linewidth=0.5))
+        if text != "":
+            ax.text(x + w / 2, y + rh / 2, he(text), ha="center", va="center",
+                    fontsize=size, color=fg, fontweight="bold" if bold else "normal")
+
+    # כותרת
+    y = top - rh
+    cell(x_name, y, cw_name, "שם", NAVY, WHITE, True, 9)
+    cell(x_role, y, cw_role, "תפקיד", NAVY, WHITE, True, 9)
+    for i, d in enumerate(days):
+        x = x_role - (i + 1) * cw_day
+        cell(x, y, cw_day, f"{d.day}\n{HEB_DOW[d.weekday()]}", day_color(d), "#000000", True, 7)
+    # חיילים
+    for r, (name, role) in enumerate(SOLDIERS, start=1):
+        y = top - rh * (r + 1)
+        cell(x_name, y, cw_name, name, "#FFFFFF", "#000000", True, 8)
+        cell(x_role, y, cw_role, role, "#F4F7FC", "#000000", False, 7)
+        for i, d in enumerate(days):
+            s = demo_status(r - 1, d)
+            x = x_role - (i + 1) * cw_day
+            cell(x, y, cw_day, s, STATUS_COLORS[s], "#000000", False, 6)
+    # שורות מצבה
+    labels = ['סה"כ בבסיס', "נשקייה בבסיס", "אפסנאות בבסיס"]
+    mins = [MIN_BASE, MIN_NESHEK, MIN_AFSANA]
+    for k, (label, mn) in enumerate(zip(labels, mins)):
+        y = top - rh * (len(SOLDIERS) + 2 + k)
+        cell(x_role, y, cw_role + cw_name, label, NAVY, WHITE, True, 8)
+        for i, d in enumerate(days):
+            if k == 0:
+                cnt = sum(demo_status(j, d) == "בסיס" for j in range(len(SOLDIERS)))
+            elif k == 1:
+                cnt = sum(demo_status(j, d) == "בסיס" and "נשקייה" in roles[j] for j in range(len(SOLDIERS)))
+            else:
+                cnt = sum(demo_status(j, d) == "בסיס" and "אפסנאות" in roles[j] for j in range(len(SOLDIERS)))
+            bg, fg = ("#FFFFFF", "#000000")
+            if cnt < mn:
+                bg, fg = ALERT, "#FFFFFF"
+            x = x_role - (i + 1) * cw_day
+            cell(x, y, cw_day, str(cnt), bg, fg, True, 8)
+
+    ax.set_title(he("דוגמה להמחשה - שבצק יציאות ספטמבר 2026 (אדום = מתחת לסף מצבה)"),
+                 fontsize=12, fontweight="bold", color=NAVY, pad=8)
+    plt.tight_layout()
+    fig.savefig(fname, dpi=140, bbox_inches="tight")
+    plt.close(fig)
+    print("נשמר:", fname)
+
+
 if __name__ == "__main__":
     for m in (6, 7, 8, 9):
         render_month(m, f"preview_{m:02d}_2026.png")
+    render_demo("preview_demo_2026.png")
