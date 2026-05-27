@@ -192,7 +192,53 @@ def render_demo(fname):
     print("נשמר:", fname)
 
 
+def render_talks(fname):
+    cols = [("שם", 2.4), ("תפקיד", 1.7), ("שוחחת?", 1.2),
+            ("תאריך שיחה", 1.7), ("נושא", 3.0), ("הערות", 3.4)]
+    table_w = sum(w for _, w in cols)
+    rh = 0.36
+    nrows = len(SOLDIERS) + 1
+    fig, ax = plt.subplots(figsize=(table_w + 0.3, rh * nrows + 0.9))
+    ax.set_xlim(0, table_w); ax.set_ylim(0, rh * nrows); ax.axis("off")
+    top = rh * nrows
+    # x של כל עמודה מימין לשמאל
+    xs, x = [], table_w
+    for _, w in cols:
+        x -= w; xs.append(x)
+
+    def cell(x, y, w, text, bg, fg="#000000", bold=False, size=9):
+        ax.add_patch(Rectangle((x, y), w, rh, facecolor=bg,
+                               edgecolor="#9AA7BD", linewidth=0.5))
+        if text != "":
+            ax.text(x + w / 2, y + rh / 2, he(text), ha="center", va="center",
+                    fontsize=size, color=fg, fontweight="bold" if bold else "normal")
+
+    y = top - rh
+    for (label, w), xx in zip(cols, xs):
+        cell(xx, y, w, label, NAVY, WHITE, True, 9)
+    sample = {0: ("כן", "12.7", "מצב אישי תקין"),
+              2: ("לא", "", ""), 5: ("כן", "3.8", "בקשת קורס")}
+    for r, (name, role) in enumerate(SOLDIERS, start=1):
+        y = top - rh * (r + 1)
+        cell(xs[0], y, cols[0][1], name, "#FFFFFF", "#000000", True, 9)
+        cell(xs[1], y, cols[1][1], role, "#F4F7FC", size=8)
+        talk, dt, note = sample.get(r - 1, ("", "", ""))
+        bg = {"כן": "#C6EFCE", "לא": "#FFC7CE"}.get(talk, "#FFFFFF")
+        cell(xs[2], y, cols[2][1], talk, bg, size=9, bold=True)
+        cell(xs[3], y, cols[3][1], dt, "#FFFFFF", size=8)
+        cell(xs[4], y, cols[4][1], note, "#FFFFFF", size=8)
+        cell(xs[5], y, cols[5][1], "", "#FFFFFF")
+
+    ax.set_title(he("שיחות אישיות עם חיילים (דוגמה - כן=ירוק, לא=אדום)"),
+                 fontsize=12, fontweight="bold", color=NAVY, pad=8)
+    plt.tight_layout()
+    fig.savefig(fname, dpi=140, bbox_inches="tight")
+    plt.close(fig)
+    print("נשמר:", fname)
+
+
 if __name__ == "__main__":
     for m in (6, 7, 8, 9):
         render_month(m, f"preview_{m:02d}_2026.png")
     render_demo("preview_demo_2026.png")
+    render_talks("preview_talks_2026.png")

@@ -270,6 +270,40 @@ for fill, label in rows:
     r += 1
 lg.cell(r + 1, 2, "ספי המצבה נקבעים בגיליון השבצק בבלוק \"הגדרות מצבה\".").font = normal
 
+# ---------------------------------------------------------------- שיחות עם חיילים
+tk = wb.create_sheet("שיחות עם חיילים")
+tk.sheet_view.rightToLeft = True
+headers = ["שם", "תפקיד", "שוחחת?", "תאריך שיחה", "נושא", "הערות"]
+widths = [16, 14, 10, 14, 26, 32]
+tk.merge_cells("A1:F1")
+tt = tk.cell(1, 1, "שיחות אישיות עם חיילים")
+tt.fill = fill_navy; tt.font = Font(bold=True, color="FFFFFF", size=14); tt.alignment = center
+for col, (h, w) in enumerate(zip(headers, widths), start=1):
+    c = tk.cell(2, col, h)
+    c.fill = fill_navy; c.font = white_bold; c.alignment = center; c.border = border
+    tk.column_dimensions[L(col)].width = w
+for r, (name, role) in enumerate(SOLDIERS, start=3):
+    nc = tk.cell(r, 1, name); nc.font = bold; nc.alignment = right; nc.border = border
+    rc = tk.cell(r, 2, role); rc.font = normal; rc.alignment = center; rc.border = border
+    for col in range(3, 7):
+        cc = tk.cell(r, col); cc.border = border; cc.alignment = center
+
+tk_first, tk_last = 3, 2 + len(SOLDIERS)
+dv2 = DataValidation(type="list", formula1='"כן,לא"', allow_blank=True)
+tk.add_data_validation(dv2); dv2.add(f"C{tk_first}:C{tk_last}")
+tk.conditional_formatting.add(f"C{tk_first}:C{tk_last}", CellIsRule(
+    operator="equal", formula=['"כן"'], fill=PatternFill("solid", fgColor="C6EFCE")))
+tk.conditional_formatting.add(f"C{tk_first}:C{tk_last}", CellIsRule(
+    operator="equal", formula=['"לא"'], fill=PatternFill("solid", fgColor="FFC7CE")))
+sumr = tk_last + 2
+tk.cell(sumr, 1, "סה\"כ שוחחו:").font = bold
+sc = tk.cell(sumr, 2, f'=COUNTIF(C{tk_first}:C{tk_last},"כן")')
+sc.font = bold; sc.alignment = center
+tk.cell(sumr + 1, 1, "נותרו לשיחה:").font = bold
+nc = tk.cell(sumr + 1, 2, f'=COUNTIF(C{tk_first}:C{tk_last},"לא")')
+nc.font = bold; nc.alignment = center
+tk.freeze_panes = "A3"
+
 OUT = "shavtzak_yetziot.xlsx"
 wb.save(OUT)
 print(f"נשמר: {OUT} | חיילים: {len(SOLDIERS)} | ימים: {n_dates} "
