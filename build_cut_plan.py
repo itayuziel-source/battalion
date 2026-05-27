@@ -10,7 +10,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Alignment, Border, Font, PatternFill, Side
 from openpyxl.utils import get_column_letter as L
 
-from sheet_calc import PANELS, STOCKS, split_panel, MaxRectsBin
+from sheet_calc import PANELS, STOCKS, PRICES, split_panel, MaxRectsBin
 
 REQ_AREA = sum(w * h * q for w, h, q in PANELS)
 
@@ -35,15 +35,19 @@ def pack_record(items, W, H):
     return plates
 
 
+def plates_for(w, h, q, plate):
+    """כמה לוחות מסוג נתון נדרשים לפאנל (עצמאי)."""
+    items = [(a, b, "") for (a, b) in split_panel(w, h, *plate)] * q
+    return len(pack_record(items, *plate))
+
+
 def best_plate(w, h, q):
-    """בוחר את הפלטה עם הכי מעט שטח כולל לפאנל הזה."""
+    """בוחר את הפלטה עם העלות הנמוכה ביותר לפאנל הזה."""
     best = None
-    for (pw, ph) in STOCKS:
-        items = [(a, b, "") for (a, b) in split_panel(w, h, pw, ph)] * q
-        n = len(pack_record(items, pw, ph))
-        area = n * pw * ph
-        if best is None or area < best[0]:
-            best = (area, (pw, ph))
+    for plate in STOCKS:
+        cost = plates_for(w, h, q, plate) * PRICES[plate]
+        if best is None or cost < best[0]:
+            best = (cost, plate)
     return best[1]
 
 
