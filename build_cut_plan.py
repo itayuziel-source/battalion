@@ -41,14 +41,24 @@ def plates_for(w, h, q, plate):
     return len(pack_record(items, *plate))
 
 
-def best_plate(w, h, q):
-    """בוחר את הפלטה עם העלות הנמוכה ביותר לפאנל הזה."""
-    best = None
+def panel_options(w, h, q):
+    opts = []
     for plate in STOCKS:
-        cost = plates_for(w, h, q, plate) * PRICES[plate]
-        if best is None or cost < best[0]:
-            best = (cost, plate)
-    return best[1]
+        pp = len(split_panel(w, h, *plate))
+        n = plates_for(w, h, q, plate)
+        opts.append({"plate": plate, "pieces": pp, "plates": n,
+                     "cost": n * PRICES[plate]})
+    return opts
+
+
+def best_plate(w, h, q, objective="convenience"):
+    """convenience = הכי מעט חתיכות→לוחות→מחיר ; cost = הכי זול."""
+    opts = panel_options(w, h, q)
+    if objective == "cost":
+        key = lambda o: (o["cost"], o["pieces"])
+    else:
+        key = lambda o: (o["pieces"], o["plates"], o["cost"])
+    return min(opts, key=key)["plate"]
 
 
 def ptype(label):
@@ -79,11 +89,11 @@ def annotate_layouts(all_plates):
     return uniques
 
 
-def compute_plan():
+def compute_plan(objective="convenience"):
     pools = {s: [] for s in STOCKS}
     assignment = []
     for (w, h, q) in PANELS:
-        pw, ph = best_plate(w, h, q)
+        pw, ph = best_plate(w, h, q, objective)
         assignment.append((w, h, q, (pw, ph)))
         sub = split_panel(w, h, pw, ph)
         for inst in range(1, q + 1):
