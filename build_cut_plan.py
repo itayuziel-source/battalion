@@ -47,6 +47,34 @@ def best_plate(w, h, q):
     return best[1]
 
 
+def ptype(label):
+    return label.split(" #")[0]
+
+
+def signature(p):
+    pieces = tuple(sorted((x, y, w, h, ptype(lbl)) for (lbl, x, y, w, h) in p["pieces"]))
+    return (p["plate"], pieces)
+
+
+def annotate_layouts(all_plates):
+    """מקבץ פלטות זהות, נותן לכל פריסה מספר, ולכל חתיכה מספר לפי מיקום."""
+    groups = {}
+    for p in all_plates:
+        groups.setdefault(signature(p), []).append(p)
+    ordered = sorted(groups.items(),
+                     key=lambda kv: (-kv[0][0][0] * kv[0][0][1], -len(kv[1])))
+    uniques = []
+    for i, (sig, members) in enumerate(ordered, start=1):
+        for p in members:
+            p["layout"] = i
+            p["numbered"] = [(n,) + pc for n, pc in enumerate(
+                sorted(p["pieces"], key=lambda z: (z[2], z[1])), start=1)]
+        rep = members[0]
+        uniques.append({"id": i, "plate": sig[0], "count": len(members),
+                        "pieces": rep["numbered"]})
+    return uniques
+
+
 def compute_plan():
     pools = {s: [] for s in STOCKS}
     assignment = []
@@ -64,6 +92,7 @@ def compute_plan():
     for s, items in pools.items():
         if items:
             all_plates.extend(pack_record(items, *s))
+    annotate_layouts(all_plates)
     total_area = sum(p["plate"][0] * p["plate"][1] for p in all_plates)
     waste = 1 - REQ_AREA / total_area
     mix = {}
@@ -95,9 +124,10 @@ def build_excel(all_plates, assignment, mix, total_area, waste, out="cut_plan.xl
     cut = wb.active
     cut.title = "תוכנית חיתוך"
     cut.sheet_view.rightToLeft = True
-    heads = ["לוח #", "מידת פלטה (מ״מ)", "חתיכה (מקור)",
+    heads = ["לוח #", "פריסה", "מס׳ חתיכה", "מידת פלטה (מ״מ)", "חתיכה (מקור)",
              "רוחב חתיכה", "אורך חתיכה", "X (מ״מ)", "Y (מ״מ)"]
-    widths = [8, 16, 22, 12, 12, 10, 10]
+    widths = [8, 8, 10, 16, 22, 12, 12, 10, 10]
+    ncol = len(heads)
     for c, (lab, w) in enumerate(zip(heads, widths), start=1):
         cell = cut.cell(1, c, lab)
         cell.fill = st["navy"]; cell.font = st["white_bold"]
@@ -108,15 +138,16 @@ def build_excel(all_plates, assignment, mix, total_area, waste, out="cut_plan.xl
         pw, ph = p["plate"]
         used = sum(pc[3] * pc[4] for pc in p["pieces"])
         util = used / (pw * ph)
-        hc = cut.cell(row, 1, f"לוח {idx}")
-        cut.merge_cells(start_row=row, start_column=1, end_row=row, end_column=2)
+        hc = cut.cell(row, 1, f"לוח {idx} | פריסה {p['layout']}")
+        cut.merge_cells(start_row=row, start_column=1, end_row=row, end_column=3)
         hc.fill = st["hdr"]; hc.font = st["white_bold"]; hc.alignment = center
-        info = cut.cell(row, 3, f"{pw}x{ph} | ניצול {util*100:.0f}% | {len(p['pieces'])} חתיכות")
-        cut.merge_cells(start_row=row, start_column=3, end_row=row, end_column=7)
+        info = cut.cell(row, 4, f"{pw}x{ph} | ניצול {util*100:.0f}% | {len(p['pieces'])} חתיכות")
+        cut.merge_cells(start_row=row, start_column=4, end_row=row, end_column=ncol)
         info.fill = st["hdr"]; info.font = st["white_bold"]; info.alignment = center
         row += 1
-        for (label, x, y, w_, h_) in sorted(p["pieces"], key=lambda z: (z[2], z[1])):
-            for c, v in enumerate([idx, f"{pw}x{ph}", label, w_, h_, x, y], start=1):
+        for (num, label, x, y, w_, h_) in p["numbered"]:
+            vals = [idx, p["layout"], num, f"{pw}x{ph}", label, w_, h_, x, y]
+            for c, v in enumerate(vals, start=1):
                 cell = cut.cell(row, c, v); cell.alignment = center; cell.border = border
             row += 1
     cut.freeze_panes = "A2"
