@@ -109,7 +109,7 @@ col_we_home = last_date_col + 3     # סופ"ש בבית
 col_hag_home = last_date_col + 4    # חגים בבית
 last_col = col_hag_home
 
-TITLE_ROW, MONTH_ROW, HEAD_ROW, FIRST_SOLDIER_ROW = 1, 2, 3, 4
+TITLE_ROW, MONTH_ROW, HEAD_ROW, NOTES_ROW, FIRST_SOLDIER_ROW = 1, 2, 3, 4, 5
 last_soldier_row = FIRST_SOLDIER_ROW + len(SOLDIERS) - 1
 base_total_row = last_soldier_row + 1   # סה"כ בבסיס
 neshek_row = last_soldier_row + 2       # נשקאים בבסיס
@@ -165,6 +165,26 @@ for col, label in ((col_base_days, "ימי בסיס"), (col_home_days, "ימי �
     c = ws.cell(HEAD_ROW, col, label)
     c.fill = fill_navy; c.font = white_bold; c.alignment = center; c.border = border
     ws.column_dimensions[L(col)].width = 9
+
+# --- שורת אירוע/הערה לכל יום (יום גיוס, יום שחרור וכו')
+notes_fill = PatternFill(patternType="solid", fgColor="FFFFF2CC")
+notes_label = ws.cell(NOTES_ROW, 1, "אירוע ביום")
+notes_label.fill = fill_navy; notes_label.font = white_bold
+notes_label.alignment = center; notes_label.border = border
+ws.merge_cells(start_row=NOTES_ROW, start_column=1,
+               end_row=NOTES_ROW, end_column=3)
+for i in range(n_dates):
+    c = ws.cell(NOTES_ROW, FIRST_DATE_COL + i)
+    c.fill = notes_fill
+    c.alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    c.font = Font(size=8, italic=True)
+    c.border = border
+for col in (col_base_days, col_home_days, col_we_home, col_hag_home):
+    ws.cell(NOTES_ROW, col).border = border
+ws.row_dimensions[NOTES_ROW].height = 28
+ws.cell(NOTES_ROW, FIRST_DATE_COL + len(STATUSES) + 1,
+        "← דוגמה: רשום פה אירוע ליום").alignment = Alignment(
+            horizontal="center", vertical="center")
 
 # --- שורות חיילים + מונים
 for r, (name, role) in enumerate(SOLDIERS, start=FIRST_SOLDIER_ROW):
