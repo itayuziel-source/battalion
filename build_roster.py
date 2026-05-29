@@ -77,7 +77,7 @@ fill_navy = PatternFill("solid", fgColor=NAVY)
 fill_gray = PatternFill("solid", fgColor=HEADER_GRAY)
 fill_yellow = PatternFill("solid", fgColor=YELLOW)
 fill_orange = PatternFill("solid", fgColor=ORANGE)
-fill_alert = PatternFill("solid", fgColor=ALERT_RED)
+fill_alert = PatternFill("solid", fgColor="FF" + ALERT_RED)
 
 white_bold = Font(bold=True, color="FFFFFF", size=11)
 alert_font = Font(bold=True, color="FFFFFF")
@@ -236,14 +236,21 @@ ws.add_data_validation(dv); dv.add(data_rng)
 for status, color in STATUSES:
     ws.conditional_formatting.add(data_rng, CellIsRule(
         operator="equal", formula=[f'"{status}"'],
-        fill=PatternFill("solid", fgColor=color)))
+        fill=PatternFill("solid", fgColor="FF" + color)))
+
+# --- שורת דוגמה (D4:I4): כל סטטוס בתא שלו - תפתח ותראה את הצביעה עובדת
+for i, (status, _) in enumerate(STATUSES):
+    c = ws.cell(FIRST_SOLDIER_ROW, FIRST_DATE_COL + i, status)
+    c.alignment = center
+ws.cell(FIRST_SOLDIER_ROW, FIRST_DATE_COL + len(STATUSES) + 1,
+        "← דוגמה למחיקה").alignment = center
 
 # --- סולם צבעים על "סופ"ש בבית" (איתור חוסר איזון)
 we_rng = f"{L(col_we_home)}{FIRST_SOLDIER_ROW}:{L(col_we_home)}{last_soldier_row}"
 ws.conditional_formatting.add(we_rng, ColorScaleRule(
-    start_type="min", start_color="C6EFCE",
-    mid_type="percentile", mid_value=50, mid_color="FFEB9C",
-    end_type="max", end_color="FFC7CE"))
+    start_type="min", start_color="FFC6EFCE",
+    mid_type="percentile", mid_value=50, mid_color="FFFFEB9C",
+    end_type="max", end_color="FFFFC7CE"))
 
 # --- מידות וקיבוע
 ws.column_dimensions["A"].width = 16
