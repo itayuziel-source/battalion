@@ -236,12 +236,16 @@ ws.add_data_validation(dv); dv.add(data_rng)
 for status, color in STATUSES:
     ws.conditional_formatting.add(data_rng, CellIsRule(
         operator="equal", formula=[f'"{status}"'],
-        fill=PatternFill("solid", fgColor="FF" + color)))
+        fill=PatternFill(patternType="solid",
+                         fgColor="FF" + color, bgColor="FF" + color)))
 
-# --- שורת דוגמה (D4:I4): כל סטטוס בתא שלו - תפתח ותראה את הצביעה עובדת
-for i, (status, _) in enumerate(STATUSES):
+# --- שורת דוגמה (D4:I4): כל סטטוס בתא שלו, עם צביעה ידנית כדי שתראה
+#     את הצבעים גם בצופים שלא תומכים בעיצוב מותנה (תצוגות מקדימות במובייל).
+for i, (status, color) in enumerate(STATUSES):
     c = ws.cell(FIRST_SOLDIER_ROW, FIRST_DATE_COL + i, status)
     c.alignment = center
+    c.fill = PatternFill(patternType="solid", fgColor="FF" + color)
+    c.font = bold
 ws.cell(FIRST_SOLDIER_ROW, FIRST_DATE_COL + len(STATUSES) + 1,
         "← דוגמה למחיקה").alignment = center
 
