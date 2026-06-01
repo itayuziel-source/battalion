@@ -116,7 +116,9 @@
 /* ============================================================
    נתונים — נשמרים אוטומטית ב-localStorage של הדפדפן
    ============================================================ */
-const LS_KEY = "drone_mgmt_demo_v1"; // גרסת מצגת — אחסון נפרד, לא נוגע בנתונים האמיתיים
+const DEMO = true; // גרסת מצגת? בקבצי הדמו השורה הזו תהיה true
+const LS_KEY = DEMO ? "drone_mgmt_demo_v1" : "drone_mgmt_v1";
+const COMPANIES = ["א", "ב", "ג", "מסייעת"];
 
 // זרעי ברירת מחדל (מתוך קובץ האקסל המקורי)
 const SEED = {
@@ -145,7 +147,7 @@ const SEED = {
   kitsCount: { AVATA: 23, EVO: 7 }
 };
 
-function freshState(){
+function emptyState(){
   const catalog = [];
   for(const t of SEED.types)
     for(const [num,name,primary] of SEED.catalog[t])
@@ -154,50 +156,50 @@ function freshState(){
   for(const t of SEED.types)
     for(let i=1;i<=SEED.kitsCount[t];i++)
       kits.push({type:t, num:i, status:"זמין", notes:""});
-  // --- גרסת מצגת: נטענת כבר מלאה בנתוני דוגמה ---
-  const D=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);};
-  const numsOf=(t,skip=[])=>catalog.filter(c=>c.type===t&&!skip.includes(c.num)).map(c=>c.num);
-  const setKit=(t,n)=>{const k=kits.find(x=>x.type===t&&x.num===n);if(k)k.status="מושאל";};
-  setKit("AVATA",1); setKit("AVATA",3); setKit("EVO",2);
-  const allAvata=numsOf("AVATA");
   return {
+    companies: [...COMPANIES],
     types: [...SEED.types],
-    catalog,
-    kits,
-    soldiers: [
-      {name:"דוד כהן",mispar:"9123456",rank:"סמל"},
-      {name:"מאור לוי",mispar:"9234567",rank:"רב\"ט"},
-      {name:"יוסי בר",mispar:"9345678",rank:"טוראי"},
-      {name:"אורי עוזיאל",mispar:"9456789",rank:"סמל"},
-      {name:"ניב סורוקר",mispar:"9567890",rank:"רב\"ט"}
-    ],
-    active: [
-      {id:1,name:"דוד כהן",mispar:"9123456",rank:"סמל",type:"AVATA",kitNum:1,
-        items:allAvata,dateOut:D(-8),dateTarget:D(7)},
-      {id:2,name:"מאור לוי",mispar:"9234567",rank:"רב\"ט",type:"EVO",kitNum:2,
-        items:numsOf("EVO",[23,24,17]),dateOut:D(-21),dateTarget:D(-3)},
-      {id:3,name:"אורי עוזיאל",mispar:"9456789",rank:"סמל",type:"AVATA",kitNum:3,
-        items:allAvata,dateOut:D(-2),dateTarget:D(12)}
-    ],
-    history: [
-      {id:4,name:"יוסי בר",mispar:"9345678",rank:"טוראי",type:"AVATA",kitNum:2,
-        items:allAvata,dateOut:D(-40),dateTarget:D(-15),dateReturn:D(-14),
-        returnedItems:allAvata.filter(n=>n!==20),missingOnReturn:[20],
-        returnNotes:"חסרו פרופים ספייר; דווח לאפסנאות."},
-      {id:5,name:"ניב סורוקר",mispar:"9567890",rank:"רב\"ט",type:"EVO",kitNum:1,
-        items:numsOf("EVO"),dateOut:D(-30),dateTarget:D(-10),dateReturn:D(-11),
-        returnedItems:numsOf("EVO"),missingOnReturn:[],returnNotes:""}
-    ],
-    seq: 6
+    catalog,                 // {type,num,name,primary}
+    kits,                    // {type,num,status,notes}
+    soldiers: [],            // {name,mispar,rank,company}  — מתמלא לבד
+    active: [],              // החתמות פעילות
+    history: [],             // החתמות שהוחזרו
+    seq: 1
   };
 }
+function seedDemo(s){
+  const D=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);};
+  const numsOf=(t,skip=[])=>s.catalog.filter(c=>c.type===t&&!skip.includes(c.num)).map(c=>c.num);
+  const setKit=(t,n)=>{const k=s.kits.find(x=>x.type===t&&x.num===n);if(k)k.status="מושאל";};
+  s.soldiers=[
+    {name:"דוד כהן",mispar:"9123456",rank:"סמל",company:"א"},
+    {name:"מאור לוי",mispar:"9234567",rank:"רב\"ט",company:"ב"},
+    {name:"יוסי בר",mispar:"9345678",rank:"טוראי",company:"ג"},
+    {name:"אורי עוזיאל",mispar:"9456789",rank:"סמל",company:"מסייעת"},
+    {name:"ניב סורוקר",mispar:"9567890",rank:"רב\"ט",company:"א"}
+  ];
+  const allAvata=numsOf("AVATA");
+  s.active=[
+    {id:1,name:"דוד כהן",mispar:"9123456",rank:"סמל",company:"א",type:"AVATA",kitNum:1,items:allAvata,dateOut:D(-8),dateTarget:D(7)},
+    {id:2,name:"מאור לוי",mispar:"9234567",rank:"רב\"ט",company:"ב",type:"EVO",kitNum:2,items:numsOf("EVO",[23,24,17]),dateOut:D(-21),dateTarget:D(-3)},
+    {id:3,name:"אורי עוזיאל",mispar:"9456789",rank:"סמל",company:"מסייעת",type:"AVATA",kitNum:3,items:allAvata,dateOut:D(-2),dateTarget:D(12)}
+  ];
+  setKit("AVATA",1); setKit("AVATA",3); setKit("EVO",2);
+  s.history=[
+    {id:4,name:"יוסי בר",mispar:"9345678",rank:"טוראי",company:"ג",type:"AVATA",kitNum:2,items:allAvata,dateOut:D(-40),dateTarget:D(-15),dateReturn:D(-14),returnedItems:allAvata.filter(n=>n!==20),missingOnReturn:[20],returnNotes:"חסרו פרופים ספייר; דווח לאפסנאות."},
+    {id:5,name:"ניב סורוקר",mispar:"9567890",rank:"רב\"ט",company:"א",type:"EVO",kitNum:1,items:numsOf("EVO"),dateOut:D(-30),dateTarget:D(-10),dateReturn:D(-11),returnedItems:numsOf("EVO"),missingOnReturn:[],returnNotes:""}
+  ];
+  s.seq=6;
+  return s;
+}
+function freshState(){ return DEMO ? seedDemo(emptyState()) : emptyState(); }
 
 let state = load();
 save(); // לוודא שהזרע נשמר בטעינה ראשונה
 function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
-    if(raw) return JSON.parse(raw);
+    if(raw){ const s=JSON.parse(raw); if(!s.companies) s.companies=[...COMPANIES]; return s; }
   }catch(e){}
   return freshState();
 }
@@ -218,6 +220,22 @@ setInterval(tick,1000); tick();
 function catalogFor(type){ return state.catalog.filter(c=>c.type===type).sort((a,b)=>a.num-b.num); }
 function availableKits(type){ return state.kits.filter(k=>k.type===type && k.status==="זמין").sort((a,b)=>a.num-b.num); }
 function kitObj(type,num){ return state.kits.find(k=>k.type===type && k.num==num); }
+function isLate(r){ return r.dateTarget && r.dateTarget < today(); }
+function hasMissing(r){ return r.items.length < catalogFor(r.type).length; }
+function companyBreakdown(records){
+  const comps=[...state.companies];
+  if(records.some(r=>!r.company)) comps.push(""); // החתמות ללא פלוגה
+  return comps.map(c=>{
+    const rr=records.filter(r=>(r.company||"")===c);
+    return { company:c||"ללא פלוגה", raw:c, total:rr.length,
+      byType:state.types.map(t=>rr.filter(r=>r.type===t).length),
+      over:rr.filter(isLate).length, miss:rr.filter(hasMissing).length };
+  });
+}
+let activeFilter=""; // סינון פלוגה במסך פעילות
+let histFilter="";   // סינון פלוגה בהיסטוריה
+window.setActiveFilter=v=>{activeFilter=v; renderActive();};
+window.setHistFilter=v=>{histFilter=v; renderHistory();};
 
 function openModal(html){ $("#modal").innerHTML=html; $("#modalBg").classList.add("show"); }
 function closeModal(){ $("#modalBg").classList.remove("show"); }
@@ -262,6 +280,7 @@ function renderSignout(){
       </div>
       <div><label>מספר אישי (מ.א)</label><input id="soMispar" inputmode="numeric"></div>
       <div><label>דרגה</label><input id="soRank" placeholder="טוראי / רב״ט / סמל..."></div>
+      <div><label>פלוגה</label><select id="soCompany"><option value="">— בחר —</option>${state.companies.map(c=>`<option value="${esc(c)}">${esc(c)}</option>`).join("")}</select></div>
     </div>
     <div class="row">
       <div><label>תאריך קבלה</label><input id="soDate" type="date" value="${today()}"></div>
@@ -302,7 +321,8 @@ function refreshSoldierList(){
 function autofillSoldier(){
   const name = $("#soName").value.trim();
   const s = state.soldiers.find(x=>x.name===name);
-  if(s){ if(!$("#soMispar").value) $("#soMispar").value=s.mispar||""; if(!$("#soRank").value) $("#soRank").value=s.rank||""; }
+  if(s){ if(!$("#soMispar").value) $("#soMispar").value=s.mispar||""; if(!$("#soRank").value) $("#soRank").value=s.rank||"";
+    if(!$("#soCompany").value && s.company) $("#soCompany").value=s.company; }
 }
 function onTypeChange(){
   const type = $("#soType").value;
@@ -351,13 +371,13 @@ function doSignout(){
   if(!name){ toast("הזן שם חייל"); return; }
   const items=[...$("#checklist").querySelectorAll("input")].filter(b=>b.checked).map(b=>Number(b.dataset.num));
   if(items.length===0){ toast("לא סומן אף פריט"); return; }
-  const mispar=$("#soMispar").value.trim(), rank=$("#soRank").value.trim();
+  const mispar=$("#soMispar").value.trim(), rank=$("#soRank").value.trim(), company=$("#soCompany").value;
   // עדכון רשימת חיילים (מתמלאת לבד, ללא כפילויות)
   const ex=state.soldiers.find(s=>s.name===name);
-  if(ex){ ex.mispar=mispar||ex.mispar; ex.rank=rank||ex.rank; }
-  else state.soldiers.push({name,mispar,rank});
+  if(ex){ ex.mispar=mispar||ex.mispar; ex.rank=rank||ex.rank; if(company) ex.company=company; }
+  else state.soldiers.push({name,mispar,rank,company});
   // יצירת רשומת החתמה
-  const rec={id:state.seq++, name, mispar, rank, type, kitNum:Number(kitNum), items,
+  const rec={id:state.seq++, name, mispar, rank, company, type, kitNum:Number(kitNum), items,
     dateOut:$("#soDate").value||today(), dateTarget:$("#soTarget").value||""};
   state.active.push(rec);
   const k=kitObj(type,kitNum); if(k) k.status="מושאל";
@@ -370,31 +390,45 @@ function doSignout(){
    מסך 2 — החתמות פעילות
    ============================================================ */
 function renderActive(){
-  const rows = state.active.slice().sort((a,b)=>b.id-a.id);
-  const overdue = rows.filter(r=>r.dateTarget && r.dateTarget < today()).length;
-  const withMissing = rows.filter(r=>r.items.length < catalogFor(r.type).length).length;
+  const all = state.active.slice().sort((a,b)=>b.id-a.id);
+  const overdue = all.filter(isLate).length;
+  const withMissing = all.filter(hasMissing).length;
   const availKits = state.kits.filter(k=>k.status==="זמין").length;
+  const brk = companyBreakdown(all);
+  const rows = activeFilter ? all.filter(r=>(r.company||"")===activeFilter) : all;
+  const compOpts = state.companies.map(c=>`<option value="${esc(c)}" ${activeFilter===c?'selected':''}>פלוגה ${esc(c)}</option>`).join("");
   main.innerHTML = `
   <div class="card">
-    <h2>📋 החתמות פעילות (${rows.length})</h2>
+    <h2>📋 החתמות פעילות (${all.length})</h2>
     <div class="kpis" style="margin-bottom:14px">
-      <div class="kpi"><div class="n">${rows.length}</div><div class="l">מושאלות כעת</div></div>
+      <div class="kpi"><div class="n">${all.length}</div><div class="l">מושאלות כעת</div></div>
       <div class="kpi"><div class="n" style="color:${overdue?'var(--red)':'var(--navy)'}">${overdue}</div><div class="l">באיחור</div></div>
       <div class="kpi"><div class="n" style="color:${withMissing?'#9a7a10':'var(--navy)'}">${withMissing}</div><div class="l">עם חוסרים</div></div>
       <div class="kpi"><div class="n">${availKits}</div><div class="l">ערכות זמינות</div></div>
     </div>
-    ${rows.length===0 ? `<div class="empty">אין החתמות פעילות. עבור ל"החתמה חדשה".</div>` : `
+    <h3>פילוח פלוגתי</h3>
+    <table style="margin-bottom:16px"><thead><tr><th>פלוגה</th><th>מושאלות</th>${state.types.map(t=>`<th>${esc(t)}</th>`).join("")}<th>באיחור</th><th>חוסרים</th></tr></thead>
+    <tbody>${brk.filter(b=>b.total>0).map(b=>`<tr>
+      <td><b>${esc(b.company)}</b></td><td>${b.total}</td>${b.byType.map(n=>`<td>${n||''}</td>`).join("")}
+      <td>${b.over?`<span class="pill bad">${b.over}</span>`:'0'}</td>
+      <td>${b.miss?`<span class="pill out">${b.miss}</span>`:'0'}</td></tr>`).join("")||`<tr><td colspan="${state.types.length+4}" class="muted" style="text-align:center">—</td></tr>`}</tbody></table>
+    <div class="toolbar">
+      <label style="margin:0">סינון פלוגה:</label>
+      <select style="max-width:200px" onchange="setActiveFilter(this.value)"><option value="">כל הפלוגות</option>${compOpts}</select>
+      ${activeFilter?`<span class="muted">מציג פלוגה ${esc(activeFilter)} (${rows.length})</span>`:''}
+    </div>
+    ${all.length===0 ? `<div class="empty">אין החתמות פעילות. עבור ל"החתמה חדשה".</div>` :
+      rows.length===0 ? `<div class="empty">אין החתמות בפלוגה ${esc(activeFilter)}.</div>` : `
     <table><thead><tr>
-      <th>שם</th><th>מ.א</th><th>דרגה</th><th>רחפן</th><th>ערכה</th><th>פריטים</th><th>קבלה</th><th>יעד החזרה</th><th>פעולות</th>
+      <th>שם</th><th>מ.א</th><th>דרגה</th><th>פלוגה</th><th>רחפן</th><th>ערכה</th><th>פריטים</th><th>קבלה</th><th>יעד החזרה</th><th>פעולות</th>
     </tr></thead><tbody>${rows.map(r=>{
       const total=catalogFor(r.type).length;
-      const late = r.dateTarget && r.dateTarget < today();
       return `<tr>
-        <td>${esc(r.name)}</td><td>${esc(r.mispar)}</td><td>${esc(r.rank)}</td>
+        <td>${esc(r.name)}</td><td>${esc(r.mispar)}</td><td>${esc(r.rank)}</td><td>${esc(r.company)||'-'}</td>
         <td>${esc(r.type)}</td><td>#${r.kitNum}</td>
         <td>${r.items.length}/${total}${r.items.length<total?' <span class="pill bad">חוסרים</span>':''}</td>
         <td>${fmtDate(r.dateOut)}</td>
-        <td>${r.dateTarget?fmtDate(r.dateTarget):'-'} ${late?'<span class="pill bad">באיחור</span>':''}</td>
+        <td>${r.dateTarget?fmtDate(r.dateTarget):'-'} ${isLate(r)?'<span class="pill bad">באיחור</span>':''}</td>
         <td class="right-actions">
           <button class="btn sm green" onclick="openReturn(${r.id})">↩️ החזרה</button>
           <button class="btn sm ghost" onclick="printForm(${r.id})">🖨️ טופס</button>
@@ -407,7 +441,7 @@ function viewSignout(id){
   const r=state.active.find(x=>x.id===id)||state.history.find(x=>x.id===id); if(!r) return;
   const cat=catalogFor(r.type); const inc=new Set(r.items);
   openModal(`<h2>פירוט החתמה — ${esc(r.name)}</h2>
-    <p class="muted">${esc(r.type)} · ערכה #${r.kitNum} · קבלה ${fmtDate(r.dateOut)}</p>
+    <p class="muted">${r.company?'פלוגה '+esc(r.company)+' · ':''}${esc(r.type)} · ערכה #${r.kitNum} · קבלה ${fmtDate(r.dateOut)}</p>
     <table><thead><tr><th>#</th><th>פריט</th><th>נמסר?</th></tr></thead><tbody>
     ${cat.map(it=>`<tr><td>${it.num}</td><td>${esc(it.name)}${it.primary?' ⭐':''}</td>
       <td>${inc.has(it.num)?'<span class="pill ok">כן</span>':'<span class="pill bad">לא</span>'}</td></tr>`).join("")}
@@ -429,6 +463,7 @@ function printForm(id){
       <div><b>שם החייל:</b> ${esc(r.name)}</div>
       <div><b>מספר אישי:</b> ${esc(r.mispar)||"—"}</div>
       <div><b>דרגה:</b> ${esc(r.rank)||"—"}</div>
+      <div><b>פלוגה:</b> ${esc(r.company)||"—"}</div>
       <div><b>סוג רחפן:</b> ${esc(r.type)} · ערכה #${r.kitNum}</div>
       <div><b>תאריך קבלה:</b> ${fmtDate(r.dateOut)}</div>
       <div><b>תאריך החזרה ${returning?'בפועל':'(יעד)'}:</b> ${fmtDate(returning?r.dateReturn:r.dateTarget)||"—"}</div>
@@ -492,18 +527,25 @@ function doReturn(id){
    מסך 3 — היסטוריה
    ============================================================ */
 function renderHistory(){
-  const rows=state.history.slice().sort((a,b)=>b.id-a.id);
+  const all=state.history.slice().sort((a,b)=>b.id-a.id);
+  const rows = histFilter ? all.filter(r=>(r.company||"")===histFilter) : all;
+  const compOpts = state.companies.map(c=>`<option value="${esc(c)}" ${histFilter===c?'selected':''}>פלוגה ${esc(c)}</option>`).join("");
   main.innerHTML=`<div class="card">
-    <h2>📜 היסטוריית החתמות (${rows.length})</h2>
-    ${rows.length===0?`<div class="empty">אין היסטוריה עדיין.</div>`:`
-    <table><thead><tr><th>שם</th><th>מ.א</th><th>רחפן</th><th>ערכה</th><th>קבלה</th><th>החזרה</th><th>חוסרים בהחזרה</th><th>הערות</th><th></th></tr></thead>
+    <h2>📜 היסטוריית החתמות (${all.length})</h2>
+    ${all.length===0?`<div class="empty">אין היסטוריה עדיין.</div>`:`
+    <div class="toolbar">
+      <label style="margin:0">סינון פלוגה:</label>
+      <select style="max-width:200px" onchange="setHistFilter(this.value)"><option value="">כל הפלוגות</option>${compOpts}</select>
+    </div>
+    ${rows.length===0?`<div class="empty">אין רשומות בפלוגה ${esc(histFilter)}.</div>`:`
+    <table><thead><tr><th>שם</th><th>מ.א</th><th>פלוגה</th><th>רחפן</th><th>ערכה</th><th>קבלה</th><th>החזרה</th><th>חוסרים בהחזרה</th><th>הערות</th><th></th></tr></thead>
     <tbody>${rows.map(r=>`<tr>
-      <td>${esc(r.name)}</td><td>${esc(r.mispar)}</td><td>${esc(r.type)}</td><td>#${r.kitNum}</td>
+      <td>${esc(r.name)}</td><td>${esc(r.mispar)}</td><td>${esc(r.company)||'-'}</td><td>${esc(r.type)}</td><td>#${r.kitNum}</td>
       <td>${fmtDate(r.dateOut)}</td><td>${fmtDate(r.dateReturn)}</td>
       <td>${(r.missingOnReturn&&r.missingOnReturn.length)?`<span class="pill bad">${r.missingOnReturn.length}</span>`:'<span class="pill ok">0</span>'}</td>
       <td>${esc(r.returnNotes||"")}</td>
       <td class="right-actions"><button class="btn sm ghost" onclick="printForm(${r.id})">🖨️ טופס</button><button class="btn sm ghost" onclick="viewSignout(${r.id})">פירוט</button></td>
-    </tr>`).join("")}</tbody></table>`}
+    </tr>`).join("")}</tbody></table>`}`}
   </div>`;
 }
 
@@ -606,8 +648,14 @@ function renderData(){
       <div class="kpi"><div class="n">${state.soldiers.length}</div><div class="l">חיילים</div></div>
       <div class="kpi"><div class="n">${state.kits.length}</div><div class="l">ערכות</div></div>
     </div>
+    <h3>פלוגות</h3>
+    <p class="muted">הפלוגות שמופיעות בבחירה ובפילוח. מחיקה לא משנה החתמות קיימות.</p>
+    <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:6px">
+      ${state.companies.map(c=>`<span class="pill ok" style="display:inline-flex;align-items:center;gap:6px">${esc(c)} <a href="javascript:void(0)" onclick="delCompany('${esc(c)}')" style="color:var(--red);text-decoration:none;font-weight:700">✕</a></span>`).join("")||'<span class="muted">אין פלוגות</span>'}
+      <button class="btn ghost sm" onclick="addCompany()">➕ פלוגה</button>
+    </div>
     <h3>ייצוא לאקסל (.xlsx)</h3>
-    <p class="muted">מייצא את כל הגיליונות (החתמות, היסטוריה, ערכות, קטלוג, חיילים) לקובץ Excel אמיתי — נפתח ב-Excel/Sheets.</p>
+    <p class="muted">מייצא את כל הגיליונות (החתמות, היסטוריה, פילוח פלוגתי, ערכות, קטלוג, חיילים) לקובץ Excel אמיתי — נפתח ב-Excel/Sheets.</p>
     <button class="btn green" id="expXlsx">⬇️ הורד Excel</button>
     <h3>גיבוי / שחזור (JSON)</h3>
     <p class="muted">גיבוי מלא של כל הנתונים. שמור את הקובץ; אפשר לטעון אותו במחשב אחר.</p>
@@ -629,25 +677,13 @@ function renderData(){
 }
 function loadDemo(){
   if(!confirm("לטעון נתוני דמו? זה ידרוס את הנתונים הקיימים.")) return;
-  const s=freshState();
-  const D=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);};
-  s.soldiers=[{name:"דוד כהן",mispar:"9123456",rank:"סמל"},{name:"מאור לוי",mispar:"9234567",rank:"רב\"ט"},
-    {name:"יוסי בר",mispar:"9345678",rank:"טוראי"},{name:"אורי עוזיאל",mispar:"9456789",rank:"סמל"}];
-  // החתמה מלאה
-  s.active.push({id:s.seq++,name:"דוד כהן",mispar:"9123456",rank:"סמל",type:"AVATA",kitNum:1,
-    items:s.catalog.filter(c=>c.type==="AVATA").map(c=>c.num),dateOut:D(-10),dateTarget:D(5)});
-  // החתמה עם חוסרים + באיחור
-  s.active.push({id:s.seq++,name:"מאור לוי",mispar:"9234567",rank:"רב\"ט",type:"EVO",kitNum:1,
-    items:s.catalog.filter(c=>c.type==="EVO"&&![23,24,17].includes(c.num)).map(c=>c.num),dateOut:D(-20),dateTarget:D(-2)});
-  s.kits.find(k=>k.type==="AVATA"&&k.num===1).status="מושאל";
-  s.kits.find(k=>k.type==="EVO"&&k.num===1).status="מושאל";
-  // היסטוריה — הוחזר עם חוסר אחד
-  const all=s.catalog.filter(c=>c.type==="AVATA").map(c=>c.num);
-  s.history.push({id:s.seq++,name:"יוסי בר",mispar:"9345678",rank:"טוראי",type:"AVATA",kitNum:2,
-    items:all,dateOut:D(-40),dateTarget:D(-15),dateReturn:D(-14),
-    returnedItems:all.filter(n=>n!==20),missingOnReturn:[20],returnNotes:"חסרו פרופים ספייר; דווח לאפסנאות."});
-  state=s; save(); toast("נטענו נתוני דמו"); rerender();
+  state=seedDemo(emptyState()); save(); toast("נטענו נתוני דמו"); rerender();
 }
+window.addCompany=()=>{ const c=prompt("שם פלוגה חדשה:"); if(!c)return;
+  if(state.companies.includes(c.trim())){ toast("פלוגה כבר קיימת"); return; }
+  state.companies.push(c.trim()); save(); renderData(); toast("נוספה פלוגה"); };
+window.delCompany=(c)=>{ if(!confirm("למחוק פלוגה "+c+"? (החתמות קיימות לא ישתנו)"))return;
+  state.companies=state.companies.filter(x=>x!==c); save(); renderData(); };
 function download(name,blob){
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
   document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
@@ -669,14 +705,17 @@ function exportXlsx(){
 }
 function buildSheets(){
   const itemNames=(type,nums)=>{ const m=new Map(catalogFor(type).map(c=>[c.num,c.name])); return nums.map(n=>m.get(n)||("#"+n)).join(", "); };
-  const signRow=r=>[r.id,r.name,r.mispar,r.rank,r.type,r.kitNum,r.items.length,itemNames(r.type,r.items),fmtDate(r.dateOut),r.dateTarget?fmtDate(r.dateTarget):""];
-  const active={name:"החתמות",rows:[["id","שם","מ.א","דרגה","סוג_רחפן","מספר_ערכה","מס׳ פריטים","פריטים","תאריך_קבלה","תאריך_יעד"],...state.active.map(signRow)]};
-  const hist={name:"היסטוריה",rows:[["id","שם","מ.א","דרגה","סוג_רחפן","מספר_ערכה","פריטים","תאריך_קבלה","תאריך_החזרה","חוסרים","הערות"],
-    ...state.history.map(r=>[r.id,r.name,r.mispar,r.rank,r.type,r.kitNum,itemNames(r.type,r.items),fmtDate(r.dateOut),fmtDate(r.dateReturn),(r.missingOnReturn||[]).length,r.returnNotes||""])]};
+  const signRow=r=>[r.id,r.name,r.mispar,r.rank,r.company||"",r.type,r.kitNum,r.items.length,itemNames(r.type,r.items),fmtDate(r.dateOut),r.dateTarget?fmtDate(r.dateTarget):""];
+  const active={name:"החתמות",rows:[["id","שם","מ.א","דרגה","פלוגה","סוג_רחפן","מספר_ערכה","מס׳ פריטים","פריטים","תאריך_קבלה","תאריך_יעד"],...state.active.map(signRow)]};
+  const hist={name:"היסטוריה",rows:[["id","שם","מ.א","דרגה","פלוגה","סוג_רחפן","מספר_ערכה","פריטים","תאריך_קבלה","תאריך_החזרה","חוסרים","הערות"],
+    ...state.history.map(r=>[r.id,r.name,r.mispar,r.rank,r.company||"",r.type,r.kitNum,itemNames(r.type,r.items),fmtDate(r.dateOut),fmtDate(r.dateReturn),(r.missingOnReturn||[]).length,r.returnNotes||""])]};
   const kits={name:"ערכות",rows:[["סוג_רחפן","מספר_ערכה","סטטוס","הערות"],...state.kits.map(k=>[k.type,k.num,k.status,k.notes||""])]};
   const cat={name:"קטלוג_פריטים",rows:[["סוג_רחפן","מספר_פריט","שם_פריט","ראשי"],...state.catalog.map(c=>[c.type,c.num,c.name,c.primary?"כן":"לא"])]};
-  const sol={name:"חיילים",rows:[["שם","מ.א","דרגה"],...state.soldiers.map(s=>[s.name,s.mispar||"",s.rank||""])]};
-  return [active,hist,kits,cat,sol];
+  const sol={name:"חיילים",rows:[["שם","מ.א","דרגה","פלוגה"],...state.soldiers.map(s=>[s.name,s.mispar||"",s.rank||"",s.company||""])]};
+  const brk=companyBreakdown(state.active);
+  const seg={name:"פילוח_פלוגתי",rows:[["פלוגה","מושאלות",...state.types,"באיחור","חוסרים"],
+    ...brk.map(b=>[b.company,b.total,...b.byType,b.over,b.miss])]};
+  return [active,hist,seg,kits,cat,sol];
 }
 
 /* --- מנוע ZIP/XLSX מינימלי --- */
