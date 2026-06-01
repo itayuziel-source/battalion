@@ -166,14 +166,15 @@ function freshState(){
 }
 
 let state = load();
+save(); // לוודא שהזרע נשמר בטעינה ראשונה
 function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
     if(raw) return JSON.parse(raw);
   }catch(e){}
-  const s = freshState(); save(s); return s;
+  return freshState();
 }
-function save(s){ state=s||state; localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function save(s){ if(s) state=s; localStorage.setItem(LS_KEY, JSON.stringify(state)); }
 
 /* ============================================================
    עזרי תצוגה
@@ -233,7 +234,7 @@ function renderSignout(){
         <datalist id="soldierNames"></datalist>
       </div>
       <div><label>מספר אישי (מ.א)</label><input id="soMispar" inputmode="numeric"></div>
-      <div><label>דרגה</label><input id="soRank" placeholder="טוראי / רב\"ט / סמל..."></div>
+      <div><label>דרגה</label><input id="soRank" placeholder="טוראי / רב״ט / סמל..."></div>
     </div>
     <div class="row">
       <div><label>תאריך קבלה</label><input id="soDate" type="date" value="${today()}"></div>
