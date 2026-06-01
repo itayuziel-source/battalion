@@ -1,0 +1,615 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ניהול רחפנים – ארמו"ן גדוד 28</title>
+<style>
+  :root{
+    --navy:#1F4E78; --navy2:#2E75B6; --bg:#f4f6fb; --line:#d3dbe8;
+    --green:#1f9d55; --green-bg:#e6f6ec; --red:#c0392b; --red-bg:#fbe9e7;
+    --yellow-bg:#fff7df; --gray:#6b7785; --card:#ffffff;
+  }
+  *{box-sizing:border-box;}
+  body{margin:0;font-family:"Segoe UI",Arial,Heebo,sans-serif;background:var(--bg);color:#1c2733;}
+  header{background:var(--navy);color:#fff;padding:14px 20px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px;}
+  header h1{font-size:20px;margin:0;}
+  header .sub{opacity:.8;font-size:13px;}
+  nav{display:flex;gap:4px;background:var(--navy2);padding:0 12px;flex-wrap:wrap;}
+  nav button{background:transparent;border:none;color:#eaf2fb;padding:12px 16px;cursor:pointer;font-size:15px;border-bottom:3px solid transparent;}
+  nav button:hover{background:rgba(255,255,255,.1);}
+  nav button.active{background:var(--bg);color:var(--navy);font-weight:700;border-bottom-color:var(--navy);}
+  main{padding:18px;max-width:1100px;margin:0 auto;}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:18px;margin-bottom:16px;box-shadow:0 1px 3px rgba(0,0,0,.04);}
+  h2{margin:0 0 14px;color:var(--navy);font-size:18px;}
+  h3{margin:16px 0 8px;color:var(--navy2);font-size:15px;}
+  label{display:block;font-size:13px;color:var(--gray);margin:8px 0 3px;}
+  input,select,textarea{width:100%;padding:9px 10px;border:1px solid var(--line);border-radius:7px;font-size:14px;font-family:inherit;background:#fff;}
+  input:focus,select:focus{outline:none;border-color:var(--navy2);box-shadow:0 0 0 2px rgba(46,117,182,.15);}
+  .row{display:flex;gap:12px;flex-wrap:wrap;}
+  .row>div{flex:1;min-width:150px;}
+  .btn{background:var(--navy);color:#fff;border:none;padding:10px 18px;border-radius:7px;font-size:15px;cursor:pointer;font-family:inherit;}
+  .btn:hover{background:#163a5c;}
+  .btn:disabled{background:#9fb0c4;cursor:not-allowed;}
+  .btn.green{background:var(--green);} .btn.green:hover{background:#177a41;}
+  .btn.red{background:var(--red);} .btn.red:hover{background:#962d22;}
+  .btn.ghost{background:#eef2f8;color:var(--navy);} .btn.ghost:hover{background:#dde6f2;}
+  .btn.sm{padding:6px 12px;font-size:13px;}
+  table{width:100%;border-collapse:collapse;font-size:14px;}
+  th,td{border:1px solid var(--line);padding:8px 10px;text-align:right;}
+  th{background:var(--navy);color:#fff;font-weight:600;white-space:nowrap;}
+  tr:nth-child(even) td{background:#fafcff;}
+  .pill{display:inline-block;padding:2px 10px;border-radius:20px;font-size:12px;font-weight:700;}
+  .pill.ok{background:var(--green-bg);color:var(--green);}
+  .pill.out{background:var(--yellow-bg);color:#9a7a10;}
+  .pill.bad{background:var(--red-bg);color:var(--red);}
+  .checklist{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:6px;margin-top:6px;}
+  .chk{display:flex;align-items:center;gap:8px;padding:8px 10px;border:1px solid var(--line);border-radius:7px;background:#fff;cursor:pointer;}
+  .chk:hover{background:#f7faff;}
+  .chk input{width:auto;}
+  .chk.primary{border-right:4px solid var(--navy2);}
+  .chk.unchecked{background:var(--red-bg);border-color:#f0c4bd;}
+  .chk .star{color:var(--navy2);font-size:12px;}
+  .muted{color:var(--gray);font-size:13px;}
+  .toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:12px;}
+  .toolbar input[type=search]{max-width:260px;}
+  .empty{text-align:center;color:var(--gray);padding:30px;}
+  .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%);background:#1c2733;color:#fff;padding:12px 22px;border-radius:8px;font-size:14px;opacity:0;transition:opacity .3s;z-index:50;}
+  .toast.show{opacity:1;}
+  .modal-bg{position:fixed;inset:0;background:rgba(0,0,0,.45);display:none;align-items:center;justify-content:center;z-index:40;padding:16px;}
+  .modal-bg.show{display:flex;}
+  .modal{background:#fff;border-radius:12px;padding:20px;max-width:640px;width:100%;max-height:88vh;overflow:auto;}
+  .summary-line{display:flex;justify-content:space-between;font-size:13px;color:var(--gray);margin-top:6px;}
+  .kpis{display:flex;gap:12px;flex-wrap:wrap;}
+  .kpi{flex:1;min-width:120px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:14px;text-align:center;}
+  .kpi .n{font-size:26px;font-weight:800;color:var(--navy);}
+  .kpi .l{font-size:13px;color:var(--gray);}
+  datalist{display:none;}
+  .right-actions{display:flex;gap:6px;justify-content:flex-start;}
+  @media(max-width:600px){.checklist{grid-template-columns:1fr;}}
+</style>
+</head>
+<body>
+<header>
+  <div><h1>🛩️ ניהול רחפנים</h1><div class="sub">ארמו"ן גדוד 28 — החתמות, ערכות וקטלוג</div></div>
+  <div class="sub" id="clock"></div>
+</header>
+<nav id="nav">
+  <button data-tab="signout" class="active">➕ החתמה חדשה</button>
+  <button data-tab="active">📋 החתמות פעילות</button>
+  <button data-tab="history">📜 היסטוריה</button>
+  <button data-tab="catalog">🧰 קטלוג פריטים</button>
+  <button data-tab="kits">📦 ערכות</button>
+  <button data-tab="data">💾 ייצוא / גיבוי</button>
+</nav>
+<main id="main"></main>
+
+<div class="modal-bg" id="modalBg"><div class="modal" id="modal"></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+/* ============================================================
+   נתונים — נשמרים אוטומטית ב-localStorage של הדפדפן
+   ============================================================ */
+const LS_KEY = "drone_mgmt_v1";
+
+// זרעי ברירת מחדל (מתוך קובץ האקסל המקורי)
+const SEED = {
+  types: ["AVATA", "EVO"],
+  catalog: {
+    AVATA: [
+      [1,"תיק ירך",true],[2,"רחפן AVATA",true],[3,"מגן גימבל",true],
+      [4,"פרופ #1",false],[5,"פרופ #2",false],[6,"פרופ #3",false],[7,"פרופ #4",false],
+      [8,"ג'ויסטיק",true],[9,"רצועה לג'ויסטיק",false],[10,"משקף אינטגרה",true],
+      [11,"משקף גוגלס 2",true],[12,"כרטיס זיכרון 128GB",false],[13,"סוללה לרחפן",false],
+      [14,"מטען יחיד לסוללה",false],[15,"רכזת טעינה x4",false],[16,"ראש מטען קיר",false],
+      [17,"כבל USB TYPE-C",false],[18,"כבל TYPE-C/C",false],[19,"צג מפקד",true],
+      [20,"פרופים ספייר",false],[21,"ערכת תאורה A",true],[22,"ערכת תאורה B",true]
+    ],
+    EVO: [
+      [1,"רחפן EVO",true],[2,"מגן גימבל",true],[3,"פרופ #1",false],[4,"פרופ #2",false],
+      [5,"פרופ #3",false],[6,"פרופ #4",false],[7,"שלט לרחפן",true],[8,"אנטנה #1",false],
+      [9,"אנטנה #2",false],[10,"סטיק #1",false],[11,"סטיק #2",false],[12,"סוללה לרחפן",false],
+      [13,"שנאי + כבל שמינייה",false],[14,"ראש מטען W65",false],[15,"כבל USB TYPE-C",false],
+      [16,"כבל TYPE-C/C",false],[17,"פרופים ספייר",false],[18,"תיק פקל EVO",true],
+      [19,"התקן הטלה ברזל",true],[20,"התקן הטלה נוצה",true],[21,"מטען רב ערוצי",false],
+      [22,"אנטנה מגדיל טווח",true],[23,"חצובה לאנטנה",false],[24,"כבל מאריך 20מ",false],
+      [25,"ערכת טעינה לשטח",true]
+    ]
+  },
+  kitsCount: { AVATA: 23, EVO: 7 }
+};
+
+function freshState(){
+  const catalog = [];
+  for(const t of SEED.types)
+    for(const [num,name,primary] of SEED.catalog[t])
+      catalog.push({type:t, num, name, primary});
+  const kits = [];
+  for(const t of SEED.types)
+    for(let i=1;i<=SEED.kitsCount[t];i++)
+      kits.push({type:t, num:i, status:"זמין", notes:""});
+  return {
+    types: [...SEED.types],
+    catalog,                 // {type,num,name,primary}
+    kits,                    // {type,num,status,notes}
+    soldiers: [],            // {name,mispar,rank}  — מתמלא לבד
+    active: [],              // החתמות פעילות
+    history: [],             // החתמות שהוחזרו
+    seq: 1
+  };
+}
+
+let state = load();
+function load(){
+  try{
+    const raw = localStorage.getItem(LS_KEY);
+    if(raw) return JSON.parse(raw);
+  }catch(e){}
+  const s = freshState(); save(s); return s;
+}
+function save(s){ state=s||state; localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+
+/* ============================================================
+   עזרי תצוגה
+   ============================================================ */
+const $ = sel => document.querySelector(sel);
+const main = $("#main");
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+function today(){ const d=new Date(); return d.toISOString().slice(0,10); }
+function fmtDate(s){ if(!s) return ""; const [y,m,d]=s.split("-"); return d+"/"+m+"/"+y; }
+function toast(msg){ const t=$("#toast"); t.textContent=msg; t.classList.add("show"); setTimeout(()=>t.classList.remove("show"),2200); }
+function tick(){ $("#clock").textContent = new Date().toLocaleString("he-IL",{dateStyle:"medium",timeStyle:"short"}); }
+setInterval(tick,1000); tick();
+
+function catalogFor(type){ return state.catalog.filter(c=>c.type===type).sort((a,b)=>a.num-b.num); }
+function availableKits(type){ return state.kits.filter(k=>k.type===type && k.status==="זמין").sort((a,b)=>a.num-b.num); }
+function kitObj(type,num){ return state.kits.find(k=>k.type===type && k.num==num); }
+
+function openModal(html){ $("#modal").innerHTML=html; $("#modalBg").classList.add("show"); }
+function closeModal(){ $("#modalBg").classList.remove("show"); }
+$("#modalBg").addEventListener("click", e=>{ if(e.target===$("#modalBg")) closeModal(); });
+
+/* ============================================================
+   ניווט בין מסכים
+   ============================================================ */
+const TABS = {signout:renderSignout, active:renderActive, history:renderHistory, catalog:renderCatalog, kits:renderKits, data:renderData};
+let currentTab = "signout";
+$("#nav").addEventListener("click", e=>{
+  const b = e.target.closest("button"); if(!b) return;
+  document.querySelectorAll("#nav button").forEach(x=>x.classList.remove("active"));
+  b.classList.add("active"); currentTab=b.dataset.tab; TABS[currentTab]();
+});
+function rerender(){ TABS[currentTab](); }
+
+/* ============================================================
+   מסך 1 — החתמה חדשה
+   ============================================================ */
+function renderSignout(){
+  const typeOpts = state.types.map(t=>`<option value="${esc(t)}">${esc(t)}</option>`).join("");
+  main.innerHTML = `
+  <div class="card">
+    <h2>➕ החתמה חדשה</h2>
+    <div class="row">
+      <div>
+        <label>סוג רחפן</label>
+        <select id="soType"><option value="">— בחר —</option>${typeOpts}</select>
+      </div>
+      <div>
+        <label>מספר ערכה (זמינה)</label>
+        <select id="soKit"><option value="">— בחר סוג קודם —</option></select>
+      </div>
+    </div>
+    <h3>פרטי המחתים</h3>
+    <div class="row">
+      <div>
+        <label>שם החייל</label>
+        <input id="soName" list="soldierNames" autocomplete="off" placeholder="התחל להקליד...">
+        <datalist id="soldierNames"></datalist>
+      </div>
+      <div><label>מספר אישי (מ.א)</label><input id="soMispar" inputmode="numeric"></div>
+      <div><label>דרגה</label><input id="soRank" placeholder="טוראי / רב\"ט / סמל..."></div>
+    </div>
+    <div class="row">
+      <div><label>תאריך קבלה</label><input id="soDate" type="date" value="${today()}"></div>
+      <div><label>תאריך החזרה (יעד, רשות)</label><input id="soTarget" type="date"></div>
+    </div>
+  </div>
+
+  <div class="card" id="checkCard" style="display:none">
+    <h2>✔️ צ'קליסט פריטים</h2>
+    <p class="muted">הכל מסומן כברירת מחדל. <b>הורד סימון</b> מפריטים שלא נמסרו. פריטים עם ⭐ הם פריטים ראשיים (צ').</p>
+    <div class="toolbar">
+      <button class="btn ghost sm" id="checkAll">סמן הכל</button>
+      <button class="btn ghost sm" id="uncheckAll">נקה הכל</button>
+      <button class="btn ghost sm" id="primaryOnly">רק ראשיים</button>
+      <span class="muted" id="checkCount"></span>
+    </div>
+    <div class="checklist" id="checklist"></div>
+    <div style="margin-top:16px;display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+      <button class="btn green" id="doSignout">החתם וצור רשומה</button>
+      <span class="muted" id="signSummary"></span>
+    </div>
+  </div>`;
+
+  refreshSoldierList();
+  $("#soType").addEventListener("change", onTypeChange);
+  $("#soKit").addEventListener("change", maybeShowChecklist);
+  $("#soName").addEventListener("change", autofillSoldier);
+  $("#checkAll").addEventListener("click", ()=>setAllChecks(true));
+  $("#uncheckAll").addEventListener("click", ()=>setAllChecks(false));
+  $("#primaryOnly").addEventListener("click", primaryOnly);
+  $("#doSignout").addEventListener("click", doSignout);
+}
+
+function refreshSoldierList(){
+  const dl = $("#soldierNames"); if(!dl) return;
+  dl.innerHTML = state.soldiers.map(s=>`<option value="${esc(s.name)}">`).join("");
+}
+function autofillSoldier(){
+  const name = $("#soName").value.trim();
+  const s = state.soldiers.find(x=>x.name===name);
+  if(s){ if(!$("#soMispar").value) $("#soMispar").value=s.mispar||""; if(!$("#soRank").value) $("#soRank").value=s.rank||""; }
+}
+function onTypeChange(){
+  const type = $("#soType").value;
+  const kitSel = $("#soKit");
+  if(!type){ kitSel.innerHTML='<option value="">— בחר סוג קודם —</option>'; $("#checkCard").style.display="none"; return; }
+  const avail = availableKits(type);
+  if(avail.length===0){ kitSel.innerHTML='<option value="">אין ערכות זמינות</option>'; }
+  else kitSel.innerHTML = '<option value="">— בחר ערכה —</option>' + avail.map(k=>`<option value="${k.num}">ערכה #${k.num}</option>`).join("");
+  buildChecklist(type);
+  maybeShowChecklist();
+}
+function buildChecklist(type){
+  const items = catalogFor(type);
+  $("#checklist").innerHTML = items.map(it=>`
+    <label class="chk primary ${it.primary?'':'np'}" data-num="${it.num}">
+      <input type="checkbox" checked data-num="${it.num}">
+      <span>${esc(it.name)}</span>
+      ${it.primary?'<span class="star">⭐</span>':''}
+    </label>`).join("");
+  $("#checklist").querySelectorAll("input").forEach(cb=>cb.addEventListener("change",updateCheckUI));
+  // remove primary border from non-primary
+  $("#checklist").querySelectorAll(".chk").forEach(el=>{ if(el.classList.contains("np")) el.classList.remove("primary"); });
+  updateCheckUI();
+}
+function maybeShowChecklist(){
+  const ok = $("#soType").value && $("#soKit").value;
+  $("#checkCard").style.display = ok ? "block" : "none";
+}
+function setAllChecks(v){ $("#checklist").querySelectorAll("input").forEach(cb=>cb.checked=v); updateCheckUI(); }
+function primaryOnly(){
+  const type=$("#soType").value; const prim=new Set(catalogFor(type).filter(i=>i.primary).map(i=>i.num));
+  $("#checklist").querySelectorAll("input").forEach(cb=>cb.checked=prim.has(Number(cb.dataset.num)));
+  updateCheckUI();
+}
+function updateCheckUI(){
+  const boxes=[...$("#checklist").querySelectorAll("input")];
+  boxes.forEach(cb=>cb.closest(".chk").classList.toggle("unchecked",!cb.checked));
+  const on=boxes.filter(b=>b.checked).length;
+  $("#checkCount").textContent=`${on} / ${boxes.length} מסומנים`;
+  if($("#signSummary")) $("#signSummary").textContent=`${on} פריטים יוחתמו, ${boxes.length-on} חוסרים.`;
+}
+function doSignout(){
+  const type=$("#soType").value, kitNum=$("#soKit").value;
+  const name=$("#soName").value.trim();
+  if(!type||!kitNum){ toast("בחר סוג רחפן וערכה"); return; }
+  if(!name){ toast("הזן שם חייל"); return; }
+  const items=[...$("#checklist").querySelectorAll("input")].filter(b=>b.checked).map(b=>Number(b.dataset.num));
+  if(items.length===0){ toast("לא סומן אף פריט"); return; }
+  const mispar=$("#soMispar").value.trim(), rank=$("#soRank").value.trim();
+  // עדכון רשימת חיילים (מתמלאת לבד, ללא כפילויות)
+  const ex=state.soldiers.find(s=>s.name===name);
+  if(ex){ ex.mispar=mispar||ex.mispar; ex.rank=rank||ex.rank; }
+  else state.soldiers.push({name,mispar,rank});
+  // יצירת רשומת החתמה
+  const rec={id:state.seq++, name, mispar, rank, type, kitNum:Number(kitNum), items,
+    dateOut:$("#soDate").value||today(), dateTarget:$("#soTarget").value||""};
+  state.active.push(rec);
+  const k=kitObj(type,kitNum); if(k) k.status="מושאל";
+  save();
+  toast(`הוחתם: ${name} — ${type} ערכה #${kitNum} (${items.length} פריטים)`);
+  renderSignout();
+}
+
+/* ============================================================
+   מסך 2 — החתמות פעילות
+   ============================================================ */
+function renderActive(){
+  const rows = state.active.slice().sort((a,b)=>b.id-a.id);
+  main.innerHTML = `
+  <div class="card">
+    <h2>📋 החתמות פעילות (${rows.length})</h2>
+    ${rows.length===0 ? `<div class="empty">אין החתמות פעילות. עבור ל"החתמה חדשה".</div>` : `
+    <table><thead><tr>
+      <th>שם</th><th>מ.א</th><th>דרגה</th><th>רחפן</th><th>ערכה</th><th>פריטים</th><th>קבלה</th><th>יעד החזרה</th><th>פעולות</th>
+    </tr></thead><tbody>${rows.map(r=>{
+      const total=catalogFor(r.type).length;
+      const late = r.dateTarget && r.dateTarget < today();
+      return `<tr>
+        <td>${esc(r.name)}</td><td>${esc(r.mispar)}</td><td>${esc(r.rank)}</td>
+        <td>${esc(r.type)}</td><td>#${r.kitNum}</td>
+        <td>${r.items.length}/${total}${r.items.length<total?' <span class="pill bad">חוסרים</span>':''}</td>
+        <td>${fmtDate(r.dateOut)}</td>
+        <td>${r.dateTarget?fmtDate(r.dateTarget):'-'} ${late?'<span class="pill bad">באיחור</span>':''}</td>
+        <td class="right-actions">
+          <button class="btn sm green" onclick="openReturn(${r.id})">↩️ החזרה</button>
+          <button class="btn sm ghost" onclick="viewSignout(${r.id})">פירוט</button>
+        </td>
+      </tr>`;}).join("")}</tbody></table>`}
+  </div>`;
+}
+function viewSignout(id){
+  const r=state.active.find(x=>x.id===id)||state.history.find(x=>x.id===id); if(!r) return;
+  const cat=catalogFor(r.type); const inc=new Set(r.items);
+  openModal(`<h2>פירוט החתמה — ${esc(r.name)}</h2>
+    <p class="muted">${esc(r.type)} · ערכה #${r.kitNum} · קבלה ${fmtDate(r.dateOut)}</p>
+    <table><thead><tr><th>#</th><th>פריט</th><th>נמסר?</th></tr></thead><tbody>
+    ${cat.map(it=>`<tr><td>${it.num}</td><td>${esc(it.name)}${it.primary?' ⭐':''}</td>
+      <td>${inc.has(it.num)?'<span class="pill ok">כן</span>':'<span class="pill bad">לא</span>'}</td></tr>`).join("")}
+    </tbody></table>
+    <div style="margin-top:14px"><button class="btn ghost" onclick="closeModal()">סגור</button></div>`);
+}
+function openReturn(id){
+  const r=state.active.find(x=>x.id===id); if(!r) return;
+  const cat=catalogFor(r.type); const inc=new Set(r.items);
+  openModal(`<h2>↩️ החזרת ערכה — ${esc(r.name)}</h2>
+    <p class="muted">${esc(r.type)} · ערכה #${r.kitNum}. סמן את הפריטים <b>שהוחזרו</b> (מסומן = הוחזר).</p>
+    <div class="toolbar"><button class="btn ghost sm" onclick="document.querySelectorAll('#retList input').forEach(c=>c.checked=true)">סמן הכל הוחזר</button></div>
+    <div class="checklist" id="retList">
+    ${cat.filter(it=>inc.has(it.num)).map(it=>`<label class="chk ${it.primary?'primary':''}">
+      <input type="checkbox" checked data-num="${it.num}"><span>${esc(it.name)}</span>${it.primary?'<span class="star">⭐</span>':''}</label>`).join("")}
+    </div>
+    <label style="margin-top:12px">תאריך החזרה בפועל</label>
+    <input id="retDate" type="date" value="${today()}">
+    <label>הערות (נזק/חוסרים)</label>
+    <textarea id="retNotes" rows="2" placeholder="לדוגמה: חסרה סוללה, גימבל שרוט..."></textarea>
+    <div style="margin-top:14px;display:flex;gap:8px">
+      <button class="btn green" onclick="doReturn(${id})">אשר החזרה</button>
+      <button class="btn ghost" onclick="closeModal()">ביטול</button>
+    </div>`);
+}
+function doReturn(id){
+  const i=state.active.findIndex(x=>x.id===id); if(i<0) return;
+  const r=state.active[i];
+  const returned=[...document.querySelectorAll("#retList input")].filter(c=>c.checked).map(c=>Number(c.dataset.num));
+  const missing=r.items.filter(n=>!returned.includes(n));
+  r.dateReturn=$("#retDate").value||today();
+  r.returnedItems=returned;
+  r.missingOnReturn=missing;
+  r.returnNotes=$("#retNotes").value.trim();
+  state.history.push(r);
+  state.active.splice(i,1);
+  const k=kitObj(r.type,r.kitNum); if(k) k.status="זמין";
+  save(); closeModal();
+  toast(missing.length? `הוחזר עם ${missing.length} חוסרים`:"הוחזר במלואו ✓");
+  renderActive();
+}
+
+/* ============================================================
+   מסך 3 — היסטוריה
+   ============================================================ */
+function renderHistory(){
+  const rows=state.history.slice().sort((a,b)=>b.id-a.id);
+  main.innerHTML=`<div class="card">
+    <h2>📜 היסטוריית החתמות (${rows.length})</h2>
+    ${rows.length===0?`<div class="empty">אין היסטוריה עדיין.</div>`:`
+    <table><thead><tr><th>שם</th><th>מ.א</th><th>רחפן</th><th>ערכה</th><th>קבלה</th><th>החזרה</th><th>חוסרים בהחזרה</th><th>הערות</th><th></th></tr></thead>
+    <tbody>${rows.map(r=>`<tr>
+      <td>${esc(r.name)}</td><td>${esc(r.mispar)}</td><td>${esc(r.type)}</td><td>#${r.kitNum}</td>
+      <td>${fmtDate(r.dateOut)}</td><td>${fmtDate(r.dateReturn)}</td>
+      <td>${(r.missingOnReturn&&r.missingOnReturn.length)?`<span class="pill bad">${r.missingOnReturn.length}</span>`:'<span class="pill ok">0</span>'}</td>
+      <td>${esc(r.returnNotes||"")}</td>
+      <td><button class="btn sm ghost" onclick="viewSignout(${r.id})">פירוט</button></td>
+    </tr>`).join("")}</tbody></table>`}
+  </div>`;
+}
+
+/* ============================================================
+   מסך 4 — קטלוג פריטים (הסט הדינמי)
+   ============================================================ */
+function renderCatalog(){
+  const typeOpts=state.types.map(t=>`<option>${esc(t)}</option>`).join("");
+  main.innerHTML=`<div class="card">
+    <h2>🧰 קטלוג פריטים — הגדרת הסט</h2>
+    <p class="muted">כאן מגדירים אילו פריטים מרכיבים את הסט לכל סוג רחפן. שינוי כאן משפיע על כל החתמה חדשה — בלי לגעת ברשומות קיימות.</p>
+    <div class="row">
+      <div><label>סוג רחפן</label><select id="catType">${typeOpts}</select></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn" id="addItem">➕ הוסף פריט</button></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn ghost" id="addType">➕ סוג רחפן חדש</button></div>
+    </div>
+    <div id="catTable" style="margin-top:14px"></div>
+  </div>`;
+  $("#catType").addEventListener("change",drawCatTable);
+  $("#addItem").addEventListener("click",addCatItem);
+  $("#addType").addEventListener("click",addType);
+  drawCatTable();
+}
+function drawCatTable(){
+  const type=$("#catType").value; const items=catalogFor(type);
+  $("#catTable").innerHTML=`<table><thead><tr><th>#</th><th>שם הפריט</th><th>ראשי (צ')</th><th>פעולות</th></tr></thead>
+  <tbody>${items.map(it=>`<tr>
+    <td>${it.num}</td>
+    <td><input value="${esc(it.name)}" onchange="editCatName('${esc(type)}',${it.num},this.value)"></td>
+    <td style="text-align:center"><input type="checkbox" ${it.primary?'checked':''} onchange="editCatPrimary('${esc(type)}',${it.num},this.checked)"></td>
+    <td><button class="btn sm red" onclick="delCatItem('${esc(type)}',${it.num})">מחק</button></td>
+  </tr>`).join("")}</tbody></table>
+  <p class="muted" style="margin-top:8px">סה"כ ${items.length} פריטים, מתוכם ${items.filter(i=>i.primary).length} ראשיים.</p>`;
+}
+window.editCatName=(t,n,v)=>{ const it=state.catalog.find(c=>c.type===t&&c.num==n); if(it){it.name=v.trim();save();} };
+window.editCatPrimary=(t,n,v)=>{ const it=state.catalog.find(c=>c.type===t&&c.num==n); if(it){it.primary=v;save();} };
+window.delCatItem=(t,n)=>{ if(!confirm("למחוק פריט זה מהקטלוג?"))return;
+  state.catalog=state.catalog.filter(c=>!(c.type===t&&c.num==n)); save(); drawCatTable(); toast("נמחק"); };
+function addCatItem(){
+  const t=$("#catType").value; const name=prompt("שם הפריט החדש:"); if(!name)return;
+  const nextNum=Math.max(0,...catalogFor(t).map(i=>i.num))+1;
+  const primary=confirm("האם זה פריט ראשי (צ')?  אישור=כן, ביטול=לא");
+  state.catalog.push({type:t,num:nextNum,name:name.trim(),primary}); save(); drawCatTable(); toast("נוסף");
+}
+function addType(){
+  const t=prompt("שם סוג הרחפן החדש (למשל MAVIC):"); if(!t)return;
+  if(state.types.includes(t.trim())){ toast("סוג כבר קיים"); return; }
+  state.types.push(t.trim()); save(); renderCatalog(); $("#catType").value=t.trim(); drawCatTable(); toast("נוסף סוג");
+}
+
+/* ============================================================
+   מסך 5 — ערכות
+   ============================================================ */
+function renderKits(){
+  const typeOpts=state.types.map(t=>`<option>${esc(t)}</option>`).join("");
+  main.innerHTML=`<div class="card">
+    <h2>📦 מלאי ערכות</h2>
+    <div class="kpis" style="margin-bottom:14px">${state.types.map(t=>{
+      const all=state.kits.filter(k=>k.type===t); const av=all.filter(k=>k.status==="זמין").length;
+      return `<div class="kpi"><div class="n">${av}/${all.length}</div><div class="l">${esc(t)} זמינות</div></div>`;
+    }).join("")}</div>
+    <div class="row">
+      <div><label>סוג</label><select id="kitType">${typeOpts}</select></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn" id="addKit">➕ הוסף ערכה</button></div>
+    </div>
+    <div id="kitTable" style="margin-top:14px"></div>
+  </div>`;
+  $("#kitType").addEventListener("change",drawKitTable);
+  $("#addKit").addEventListener("click",addKit);
+  drawKitTable();
+}
+function drawKitTable(){
+  const t=$("#kitType").value;
+  const kits=state.kits.filter(k=>k.type===t).sort((a,b)=>a.num-b.num);
+  $("#kitTable").innerHTML=`<table><thead><tr><th>ערכה #</th><th>סטטוס</th><th>הערות</th><th>פעולות</th></tr></thead>
+  <tbody>${kits.map(k=>`<tr>
+    <td>#${k.num}</td>
+    <td><span class="pill ${k.status==="זמין"?'ok':'out'}">${esc(k.status)}</span></td>
+    <td><input value="${esc(k.notes||"")}" onchange="editKitNote('${esc(t)}',${k.num},this.value)"></td>
+    <td><button class="btn sm red" onclick="delKit('${esc(t)}',${k.num})" ${k.status!=="זמין"?'disabled title="ערכה מושאלת"':''}>מחק</button></td>
+  </tr>`).join("")}</tbody></table>`;
+}
+window.editKitNote=(t,n,v)=>{ const k=kitObj(t,n); if(k){k.notes=v;save();} };
+window.delKit=(t,n)=>{ const k=kitObj(t,n); if(k&&k.status!=="זמין"){toast("לא ניתן למחוק ערכה מושאלת");return;}
+  if(!confirm("למחוק ערכה זו?"))return; state.kits=state.kits.filter(x=>!(x.type===t&&x.num==n)); save(); drawKitTable(); };
+function addKit(){
+  const t=$("#kitType").value; const next=Math.max(0,...state.kits.filter(k=>k.type===t).map(k=>k.num))+1;
+  state.kits.push({type:t,num:next,status:"זמין",notes:""}); save(); renderKits(); $("#kitType").value=t; drawKitTable(); toast("נוספה ערכה #"+next);
+}
+
+/* ============================================================
+   מסך 6 — ייצוא / גיבוי
+   ============================================================ */
+function renderData(){
+  main.innerHTML=`<div class="card">
+    <h2>💾 ייצוא וגיבוי</h2>
+    <div class="kpis" style="margin-bottom:14px">
+      <div class="kpi"><div class="n">${state.active.length}</div><div class="l">פעילות</div></div>
+      <div class="kpi"><div class="n">${state.history.length}</div><div class="l">היסטוריה</div></div>
+      <div class="kpi"><div class="n">${state.soldiers.length}</div><div class="l">חיילים</div></div>
+      <div class="kpi"><div class="n">${state.kits.length}</div><div class="l">ערכות</div></div>
+    </div>
+    <h3>ייצוא לאקסל (.xlsx)</h3>
+    <p class="muted">מייצא את כל הגיליונות (החתמות, היסטוריה, ערכות, קטלוג, חיילים) לקובץ Excel אמיתי — נפתח ב-Excel/Sheets.</p>
+    <button class="btn green" id="expXlsx">⬇️ הורד Excel</button>
+    <h3>גיבוי / שחזור (JSON)</h3>
+    <p class="muted">גיבוי מלא של כל הנתונים. שמור את הקובץ; אפשר לטעון אותו במחשב אחר.</p>
+    <div style="display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn" id="expJson">⬇️ הורד גיבוי</button>
+      <button class="btn ghost" id="impJson">⬆️ טען גיבוי</button>
+      <input type="file" id="impFile" accept=".json" style="display:none">
+      <button class="btn red" id="resetAll">🗑️ אפס הכל</button>
+    </div>
+  </div>`;
+  $("#expXlsx").addEventListener("click",exportXlsx);
+  $("#expJson").addEventListener("click",exportJson);
+  $("#impJson").addEventListener("click",()=>$("#impFile").click());
+  $("#impFile").addEventListener("change",importJson);
+  $("#resetAll").addEventListener("click",()=>{ if(confirm("לאפס את כל הנתונים לברירת מחדל? פעולה בלתי הפיכה.")){ state=freshState(); save(); toast("אופס"); rerender(); }});
+}
+function download(name,blob){
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(()=>URL.revokeObjectURL(a.href),1000);
+}
+function exportJson(){ download("drone_backup_"+today()+".json", new Blob([JSON.stringify(state,null,2)],{type:"application/json"})); toast("גובה"); }
+function importJson(e){
+  const f=e.target.files[0]; if(!f)return; const r=new FileReader();
+  r.onload=()=>{ try{ const d=JSON.parse(r.result); if(!d.catalog||!d.kits) throw 0; state=d; save(); toast("הגיבוי נטען"); rerender(); }
+    catch(err){ toast("קובץ גיבוי לא תקין"); } };
+  r.readAsText(f); e.target.value="";
+}
+
+/* ---------- ייצוא Excel ללא ספריות (ZIP ‏stored + CRC32) ---------- */
+function exportXlsx(){
+  const sheets=buildSheets();
+  const blob=makeXlsx(sheets);
+  download("drone_management_"+today()+".xlsx", blob);
+  toast("קובץ Excel הורד");
+}
+function buildSheets(){
+  const itemNames=(type,nums)=>{ const m=new Map(catalogFor(type).map(c=>[c.num,c.name])); return nums.map(n=>m.get(n)||("#"+n)).join(", "); };
+  const signRow=r=>[r.id,r.name,r.mispar,r.rank,r.type,r.kitNum,r.items.length,itemNames(r.type,r.items),fmtDate(r.dateOut),r.dateTarget?fmtDate(r.dateTarget):""];
+  const active={name:"החתמות",rows:[["id","שם","מ.א","דרגה","סוג_רחפן","מספר_ערכה","מס׳ פריטים","פריטים","תאריך_קבלה","תאריך_יעד"],...state.active.map(signRow)]};
+  const hist={name:"היסטוריה",rows:[["id","שם","מ.א","דרגה","סוג_רחפן","מספר_ערכה","פריטים","תאריך_קבלה","תאריך_החזרה","חוסרים","הערות"],
+    ...state.history.map(r=>[r.id,r.name,r.mispar,r.rank,r.type,r.kitNum,itemNames(r.type,r.items),fmtDate(r.dateOut),fmtDate(r.dateReturn),(r.missingOnReturn||[]).length,r.returnNotes||""])]};
+  const kits={name:"ערכות",rows:[["סוג_רחפן","מספר_ערכה","סטטוס","הערות"],...state.kits.map(k=>[k.type,k.num,k.status,k.notes||""])]};
+  const cat={name:"קטלוג_פריטים",rows:[["סוג_רחפן","מספר_פריט","שם_פריט","ראשי"],...state.catalog.map(c=>[c.type,c.num,c.name,c.primary?"כן":"לא"])]};
+  const sol={name:"חיילים",rows:[["שם","מ.א","דרגה"],...state.soldiers.map(s=>[s.name,s.mispar||"",s.rank||""])]};
+  return [active,hist,kits,cat,sol];
+}
+
+/* --- מנוע ZIP/XLSX מינימלי --- */
+const CRC_TABLE=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(buf){let c=0xFFFFFFFF;for(let i=0;i<buf.length;i++)c=CRC_TABLE[(c^buf[i])&0xFF]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+const ENC=new TextEncoder();
+function xmlEsc(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&apos;"}[c]));}
+function colRef(n){let s="";n++;while(n>0){const m=(n-1)%26;s=String.fromCharCode(65+m)+s;n=(n-m-1)/26;}return s;}
+function sheetXml(rows){
+  let body="";
+  rows.forEach((row,ri)=>{
+    let cells="";
+    row.forEach((val,ci)=>{
+      const ref=colRef(ci)+(ri+1);
+      if(typeof val==="number"&&isFinite(val)) cells+=`<c r="${ref}"><v>${val}</v></c>`;
+      else { const s=val==null?"":String(val); cells+=`<c r="${ref}" t="inlineStr"><is><t xml:space="preserve">${xmlEsc(s)}</t></is></c>`; }
+    });
+    body+=`<row r="${ri+1}">${cells}</row>`;
+  });
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView rightToLeft="1" workbookViewId="0"/></sheetViews><sheetData>${body}</sheetData></worksheet>`;
+}
+function makeXlsx(sheets){
+  const files=[];
+  files.push(["[Content_Types].xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/>${sheets.map((s,i)=>`<Override PartName="/xl/worksheets/sheet${i+1}.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/>`).join("")}</Types>`]);
+  files.push(["_rels/.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>`]);
+  files.push(["xl/workbook.xml",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets>${sheets.map((s,i)=>`<sheet name="${xmlEsc(s.name)}" sheetId="${i+1}" r:id="rId${i+1}"/>`).join("")}</sheets></workbook>`]);
+  files.push(["xl/_rels/workbook.xml.rels",
+    `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">${sheets.map((s,i)=>`<Relationship Id="rId${i+1}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet${i+1}.xml"/>`).join("")}</Relationships>`]);
+  sheets.forEach((s,i)=>files.push([`xl/worksheets/sheet${i+1}.xml`, sheetXml(s.rows)]));
+  return zipStore(files);
+}
+function zipStore(files){
+  const enc=files.map(([name,content])=>{const data=ENC.encode(content);return {nameBytes:ENC.encode(name),data,crc:crc32(data)};});
+  const chunks=[]; let offset=0; const central=[];
+  const u16=n=>[n&0xff,(n>>8)&0xff]; const u32=n=>[n&0xff,(n>>8)&0xff,(n>>16)&0xff,(n>>>24)&0xff];
+  for(const f of enc){
+    const local=[].concat([0x50,0x4b,0x03,0x04],u16(20),u16(0),u16(0),u16(0),u16(0),u32(f.crc),u32(f.data.length),u32(f.data.length),u16(f.nameBytes.length),u16(0));
+    chunks.push(new Uint8Array(local)); chunks.push(f.nameBytes); chunks.push(f.data);
+    const cen=[].concat([0x50,0x4b,0x01,0x02],u16(20),u16(20),u16(0),u16(0),u16(0),u16(0),u32(f.crc),u32(f.data.length),u32(f.data.length),u16(f.nameBytes.length),u16(0),u16(0),u16(0),u16(0),u32(0),u32(offset));
+    central.push(new Uint8Array(cen)); central.push(f.nameBytes);
+    offset+=local.length+f.nameBytes.length+f.data.length;
+  }
+  let cenSize=0; central.forEach(c=>cenSize+=c.length);
+  const end=new Uint8Array([].concat([0x50,0x4b,0x05,0x06],u16(0),u16(0),u16(enc.length),u16(enc.length),u32(cenSize),u32(offset),u16(0)));
+  return new Blob([...chunks,...central,end],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+
+/* ============================================================ */
+renderSignout();
+</script>
+</body>
+</html>
