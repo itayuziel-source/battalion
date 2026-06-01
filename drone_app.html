@@ -174,7 +174,7 @@ function load(){
   }catch(e){}
   return freshState();
 }
-function save(s){ if(s) state=s; localStorage.setItem(LS_KEY, JSON.stringify(state)); }
+function save(s){ if(s) state=s; try{ localStorage.setItem(LS_KEY, JSON.stringify(state)); }catch(e){ /* אחסון חסום (למשל בטלפון) — ממשיכים בזיכרון */ } }
 
 /* ============================================================
    עזרי תצוגה
