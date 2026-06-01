@@ -587,14 +587,38 @@ function renderData(){
       <button class="btn" id="expJson">⬇️ הורד גיבוי</button>
       <button class="btn ghost" id="impJson">⬆️ טען גיבוי</button>
       <input type="file" id="impFile" accept=".json" style="display:none">
+      <button class="btn ghost" id="loadDemo">🧪 טען נתוני דמו</button>
       <button class="btn red" id="resetAll">🗑️ אפס הכל</button>
     </div>
+    <p class="muted" style="margin-top:8px">"נתוני דמו" ממלא החתמות לדוגמה כדי להתרשם מהמסכים. "אפס הכל" מחזיר למצב נקי.</p>
   </div>`;
   $("#expXlsx").addEventListener("click",exportXlsx);
   $("#expJson").addEventListener("click",exportJson);
   $("#impJson").addEventListener("click",()=>$("#impFile").click());
   $("#impFile").addEventListener("change",importJson);
+  $("#loadDemo").addEventListener("click",loadDemo);
   $("#resetAll").addEventListener("click",()=>{ if(confirm("לאפס את כל הנתונים לברירת מחדל? פעולה בלתי הפיכה.")){ state=freshState(); save(); toast("אופס"); rerender(); }});
+}
+function loadDemo(){
+  if(!confirm("לטעון נתוני דמו? זה ידרוס את הנתונים הקיימים.")) return;
+  const s=freshState();
+  const D=n=>{const d=new Date();d.setDate(d.getDate()+n);return d.toISOString().slice(0,10);};
+  s.soldiers=[{name:"דוד כהן",mispar:"9123456",rank:"סמל"},{name:"מאור לוי",mispar:"9234567",rank:"רב\"ט"},
+    {name:"יוסי בר",mispar:"9345678",rank:"טוראי"},{name:"אורי עוזיאל",mispar:"9456789",rank:"סמל"}];
+  // החתמה מלאה
+  s.active.push({id:s.seq++,name:"דוד כהן",mispar:"9123456",rank:"סמל",type:"AVATA",kitNum:1,
+    items:s.catalog.filter(c=>c.type==="AVATA").map(c=>c.num),dateOut:D(-10),dateTarget:D(5)});
+  // החתמה עם חוסרים + באיחור
+  s.active.push({id:s.seq++,name:"מאור לוי",mispar:"9234567",rank:"רב\"ט",type:"EVO",kitNum:1,
+    items:s.catalog.filter(c=>c.type==="EVO"&&![23,24,17].includes(c.num)).map(c=>c.num),dateOut:D(-20),dateTarget:D(-2)});
+  s.kits.find(k=>k.type==="AVATA"&&k.num===1).status="מושאל";
+  s.kits.find(k=>k.type==="EVO"&&k.num===1).status="מושאל";
+  // היסטוריה — הוחזר עם חוסר אחד
+  const all=s.catalog.filter(c=>c.type==="AVATA").map(c=>c.num);
+  s.history.push({id:s.seq++,name:"יוסי בר",mispar:"9345678",rank:"טוראי",type:"AVATA",kitNum:2,
+    items:all,dateOut:D(-40),dateTarget:D(-15),dateReturn:D(-14),
+    returnedItems:all.filter(n=>n!==20),missingOnReturn:[20],returnNotes:"חסרו פרופים ספייר; דווח לאפסנאות."});
+  state=s; save(); toast("נטענו נתוני דמו"); rerender();
 }
 function download(name,blob){
   const a=document.createElement("a"); a.href=URL.createObjectURL(blob); a.download=name;
