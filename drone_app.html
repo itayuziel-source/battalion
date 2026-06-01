@@ -66,7 +66,35 @@
   .kpi .l{font-size:13px;color:var(--gray);}
   datalist{display:none;}
   .right-actions{display:flex;gap:6px;justify-content:flex-start;flex-wrap:wrap;}
-  @media(max-width:600px){.checklist{grid-template-columns:1fr;}}
+  .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch;}
+  .pill.store{background:#e7eefb;color:#2750a8;}
+  .adminbtn{background:rgba(255,255,255,.15);color:#fff;border:1px solid rgba(255,255,255,.45);padding:7px 13px;border-radius:7px;cursor:pointer;font-size:13px;font-family:inherit;white-space:nowrap;}
+  .adminbtn.on{background:#2bbf73;border-color:#2bbf73;}
+  .lockmsg{background:var(--yellow-bg);border:1px solid #f0e2b0;border-radius:8px;padding:12px 14px;color:#7a5d00;font-size:14px;margin-bottom:12px;}
+  @media(max-width:680px){
+    .checklist{grid-template-columns:1fr;}
+    header{padding:12px 14px;}
+    header h1{font-size:17px;}
+    header .sub{font-size:11px;}
+    main{padding:12px;}
+    .card{padding:14px;}
+    h2{font-size:17px;}
+    nav{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;}
+    nav button{white-space:nowrap;padding:11px 12px;font-size:14px;}
+    .kpi{min-width:calc(50% - 6px);}
+    .btn{padding:12px 16px;}
+    .btn.sm{padding:9px 12px;font-size:13px;}
+    input,select,textarea{font-size:16px;}            /* מונע זום אוטומטי באייפון */
+    /* טבלאות עם class="cards" -> כרטיסים אנכיים בטלפון */
+    table.cards thead{display:none;}
+    table.cards tr{display:block;border:1px solid var(--line);border-radius:10px;margin-bottom:10px;padding:4px 10px;background:#fff;}
+    table.cards tr:nth-child(even) td{background:transparent;}
+    table.cards td{display:flex;justify-content:space-between;gap:12px;border:none;border-bottom:1px solid #eef1f6;padding:8px 0;text-align:left;}
+    table.cards td:last-child{border-bottom:none;}
+    table.cards td::before{content:attr(data-label);font-weight:700;color:var(--navy);text-align:right;flex-shrink:0;}
+    table.cards td.acts{flex-wrap:wrap;justify-content:flex-start;}
+    table.cards td.acts::before{content:"";}
+  }
 
   /* ---- אזור הדפסה / טופס החתמה ---- */
   #printArea{display:none;}
@@ -95,7 +123,10 @@
 <body>
 <header>
   <div><h1>🛩️ ניהול רחפנים</h1><div class="sub">ארמו"ן גדוד 28 — החתמות, ערכות וקטלוג</div></div>
-  <div class="sub" id="clock"></div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="sub" id="clock"></span>
+    <button class="adminbtn" id="adminBtn" onclick="toggleAdmin()">🔒 מנהל</button>
+  </div>
 </header>
 <nav id="nav">
   <button data-tab="signout" class="active">➕ החתמה חדשה</button>
@@ -160,10 +191,12 @@ function emptyState(){
     companies: [...COMPANIES],
     types: [...SEED.types],
     catalog,                 // {type,num,name,primary}
-    kits,                    // {type,num,status,notes}
+    kits,                    // {type,num,status:"זמין"|"מושאל"|"באפסון",notes}
     soldiers: [],            // {name,mispar,rank,company}  — מתמלא לבד
+    issuers: [],             // שמות מחתימים (מנפיקים) — מתמלא לבד
     active: [],              // החתמות פעילות
     history: [],             // החתמות שהוחזרו
+    adminPin: "1234",        // סיסמת מנהל (ניתנת לשינוי) — מחסום נוחות, לא אבטחה
     seq: 1
   };
 }
@@ -185,10 +218,15 @@ function seedDemo(s){
     {id:3,name:"אורי עוזיאל",mispar:"9456789",rank:"סמל",company:"מסייעת",type:"AVATA",kitNum:3,items:allAvata,dateOut:D(-2),dateTarget:D(12)}
   ];
   setKit("AVATA",1); setKit("AVATA",3); setKit("EVO",2);
+  // ערכה אחת באפסון לדוגמה
+  const st=s.kits.find(k=>k.type==="EVO"&&k.num===7); if(st){st.status="באפסון"; st.notes="בתיקון גימבל";}
   s.history=[
     {id:4,name:"יוסי בר",mispar:"9345678",rank:"טוראי",company:"ג",type:"AVATA",kitNum:2,items:allAvata,dateOut:D(-40),dateTarget:D(-15),dateReturn:D(-14),returnedItems:allAvata.filter(n=>n!==20),missingOnReturn:[20],returnNotes:"חסרו פרופים ספייר; דווח לאפסנאות."},
     {id:5,name:"ניב סורוקר",mispar:"9567890",rank:"רב\"ט",company:"א",type:"EVO",kitNum:1,items:numsOf("EVO"),dateOut:D(-30),dateTarget:D(-10),dateReturn:D(-11),returnedItems:numsOf("EVO"),missingOnReturn:[],returnNotes:""}
   ];
+  s.issuers=["רס\"ל ניר כהן","סמל אבי לוי"];
+  s.active.forEach((r,i)=>r.issuer=s.issuers[i%2]);
+  s.history.forEach((r,i)=>r.issuer=s.issuers[i%2]);
   s.seq=6;
   return s;
 }
@@ -199,7 +237,11 @@ save(); // לוודא שהזרע נשמר בטעינה ראשונה
 function load(){
   try{
     const raw = localStorage.getItem(LS_KEY);
-    if(raw){ const s=JSON.parse(raw); if(!s.companies) s.companies=[...COMPANIES]; return s; }
+    if(raw){ const s=JSON.parse(raw);
+      if(!s.companies) s.companies=[...COMPANIES];
+      if(!s.issuers) s.issuers=[];
+      if(!s.adminPin) s.adminPin="1234";
+      return s; }
   }catch(e){}
   return freshState();
 }
@@ -253,6 +295,19 @@ $("#nav").addEventListener("click", e=>{
 });
 function rerender(){ TABS[currentTab](); }
 
+/* ---------- מצב מנהל (מחסום נוחות, לא אבטחה אמיתית) ---------- */
+let isAdmin=false;
+function updateAdminBtn(){ const b=$("#adminBtn"); if(!b)return;
+  b.textContent=(isAdmin?"🔓 מנהל":"🔒 מנהל"); b.classList.toggle("on",isAdmin); }
+window.toggleAdmin=()=>{
+  if(isAdmin){ isAdmin=false; updateAdminBtn(); toast("יצאת ממצב מנהל"); rerender(); return; }
+  const p=prompt("סיסמת מנהל:"); if(p==null) return;
+  if(p===state.adminPin){ isAdmin=true; updateAdminBtn(); toast("מצב מנהל פעיל ✓"); rerender(); }
+  else toast("סיסמה שגויה");
+};
+function requireAdmin(){ if(!isAdmin){ toast("נדרש מצב מנהל"); return false; } return true; }
+updateAdminBtn();
+
 /* ============================================================
    מסך 1 — החתמה חדשה
    ============================================================ */
@@ -271,7 +326,7 @@ function renderSignout(){
         <select id="soKit"><option value="">— בחר סוג קודם —</option></select>
       </div>
     </div>
-    <h3>פרטי המחתים</h3>
+    <h3>פרטי החייל המקבל</h3>
     <div class="row">
       <div>
         <label>שם החייל</label>
@@ -285,6 +340,11 @@ function renderSignout(){
     <div class="row">
       <div><label>תאריך קבלה</label><input id="soDate" type="date" value="${today()}"></div>
       <div><label>תאריך החזרה (יעד, רשות)</label><input id="soTarget" type="date"></div>
+      <div>
+        <label>מחתים (מי הנפיק מאצלנו)</label>
+        <input id="soIssuer" list="issuerNames" autocomplete="off" placeholder="שם המנפיק...">
+        <datalist id="issuerNames"></datalist>
+      </div>
     </div>
   </div>
 
@@ -315,8 +375,8 @@ function renderSignout(){
 }
 
 function refreshSoldierList(){
-  const dl = $("#soldierNames"); if(!dl) return;
-  dl.innerHTML = state.soldiers.map(s=>`<option value="${esc(s.name)}">`).join("");
+  const dl = $("#soldierNames"); if(dl) dl.innerHTML = state.soldiers.map(s=>`<option value="${esc(s.name)}">`).join("");
+  const il = $("#issuerNames"); if(il) il.innerHTML = (state.issuers||[]).map(n=>`<option value="${esc(n)}">`).join("");
 }
 function autofillSoldier(){
   const name = $("#soName").value.trim();
@@ -372,12 +432,14 @@ function doSignout(){
   const items=[...$("#checklist").querySelectorAll("input")].filter(b=>b.checked).map(b=>Number(b.dataset.num));
   if(items.length===0){ toast("לא סומן אף פריט"); return; }
   const mispar=$("#soMispar").value.trim(), rank=$("#soRank").value.trim(), company=$("#soCompany").value;
+  const issuer=$("#soIssuer").value.trim();
   // עדכון רשימת חיילים (מתמלאת לבד, ללא כפילויות)
   const ex=state.soldiers.find(s=>s.name===name);
   if(ex){ ex.mispar=mispar||ex.mispar; ex.rank=rank||ex.rank; if(company) ex.company=company; }
   else state.soldiers.push({name,mispar,rank,company});
+  if(issuer && !state.issuers.includes(issuer)) state.issuers.push(issuer); // רשימת מחתימים מתמלאת לבד
   // יצירת רשומת החתמה
-  const rec={id:state.seq++, name, mispar, rank, company, type, kitNum:Number(kitNum), items,
+  const rec={id:state.seq++, name, mispar, rank, company, issuer, type, kitNum:Number(kitNum), items,
     dateOut:$("#soDate").value||today(), dateTarget:$("#soTarget").value||""};
   state.active.push(rec);
   const k=kitObj(type,kitNum); if(k) k.status="מושאל";
@@ -419,29 +481,67 @@ function renderActive(){
     </div>
     ${all.length===0 ? `<div class="empty">אין החתמות פעילות. עבור ל"החתמה חדשה".</div>` :
       rows.length===0 ? `<div class="empty">אין החתמות בפלוגה ${esc(activeFilter)}.</div>` : `
-    <table><thead><tr>
-      <th>שם</th><th>מ.א</th><th>דרגה</th><th>פלוגה</th><th>רחפן</th><th>ערכה</th><th>פריטים</th><th>קבלה</th><th>יעד החזרה</th><th>פעולות</th>
+    <div class="table-wrap"><table class="cards"><thead><tr>
+      <th>שם</th><th>מ.א</th><th>דרגה</th><th>פלוגה</th><th>מחתים</th><th>רחפן</th><th>ערכה</th><th>פריטים</th><th>קבלה</th><th>יעד החזרה</th><th>פעולות</th>
     </tr></thead><tbody>${rows.map(r=>{
       const total=catalogFor(r.type).length;
       return `<tr>
-        <td>${esc(r.name)}</td><td>${esc(r.mispar)}</td><td>${esc(r.rank)}</td><td>${esc(r.company)||'-'}</td>
-        <td>${esc(r.type)}</td><td>#${r.kitNum}</td>
-        <td>${r.items.length}/${total}${r.items.length<total?' <span class="pill bad">חוסרים</span>':''}</td>
-        <td>${fmtDate(r.dateOut)}</td>
-        <td>${r.dateTarget?fmtDate(r.dateTarget):'-'} ${isLate(r)?'<span class="pill bad">באיחור</span>':''}</td>
-        <td class="right-actions">
+        <td data-label="שם">${esc(r.name)}</td><td data-label="מ.א">${esc(r.mispar)}</td><td data-label="דרגה">${esc(r.rank)}</td><td data-label="פלוגה">${esc(r.company)||'-'}</td>
+        <td data-label="מחתים">${esc(r.issuer)||'-'}</td>
+        <td data-label="רחפן">${esc(r.type)}</td><td data-label="ערכה">#${r.kitNum}</td>
+        <td data-label="פריטים">${r.items.length}/${total}${r.items.length<total?' <span class="pill bad">חוסרים</span>':''}</td>
+        <td data-label="קבלה">${fmtDate(r.dateOut)}</td>
+        <td data-label="יעד החזרה">${r.dateTarget?fmtDate(r.dateTarget):'-'} ${isLate(r)?'<span class="pill bad">באיחור</span>':''}</td>
+        <td class="acts">
           <button class="btn sm green" onclick="openReturn(${r.id})">↩️ החזרה</button>
+          <button class="btn sm" onclick="openEdit(${r.id})">✏️ עריכה</button>
           <button class="btn sm ghost" onclick="printForm(${r.id})">🖨️ טופס</button>
           <button class="btn sm ghost" onclick="viewSignout(${r.id})">פירוט</button>
         </td>
-      </tr>`;}).join("")}</tbody></table>`}
+      </tr>`;}).join("")}</tbody></table></div>`}
   </div>`;
+}
+function openEdit(id){
+  const r=state.active.find(x=>x.id===id); if(!r) return;
+  const compOpts=state.companies.map(c=>`<option value="${esc(c)}" ${r.company===c?'selected':''}>${esc(c)}</option>`).join("");
+  openModal(`<h2>✏️ עריכת החתמה — ${esc(r.name)}</h2>
+    <p class="muted">${esc(r.type)} · ערכה #${r.kitNum}. ניתן לשנות פרטים או להעביר את ההחתמה לחייל אחר.</p>
+    <div class="row">
+      <div><label>שם החייל</label><input id="edName" list="soldierNamesEdit" value="${esc(r.name)}"><datalist id="soldierNamesEdit">${state.soldiers.map(s=>`<option value="${esc(s.name)}">`).join("")}</datalist></div>
+      <div><label>מספר אישי</label><input id="edMispar" value="${esc(r.mispar)}"></div>
+    </div>
+    <div class="row">
+      <div><label>דרגה</label><input id="edRank" value="${esc(r.rank)}"></div>
+      <div><label>פלוגה</label><select id="edCompany"><option value="">—</option>${compOpts}</select></div>
+    </div>
+    <div class="row">
+      <div><label>מחתים</label><input id="edIssuer" list="issuerNamesEdit" value="${esc(r.issuer||'')}"><datalist id="issuerNamesEdit">${(state.issuers||[]).map(n=>`<option value="${esc(n)}">`).join("")}</datalist></div>
+      <div><label>תאריך קבלה</label><input id="edDate" type="date" value="${r.dateOut||''}"></div>
+      <div><label>יעד החזרה</label><input id="edTarget" type="date" value="${r.dateTarget||''}"></div>
+    </div>
+    <div style="margin-top:14px;display:flex;gap:8px;flex-wrap:wrap">
+      <button class="btn green" onclick="doEdit(${id})">שמור</button>
+      <button class="btn ghost" onclick="closeModal()">ביטול</button>
+    </div>`);
+}
+function doEdit(id){
+  const r=state.active.find(x=>x.id===id); if(!r) return;
+  const name=$("#edName").value.trim(); if(!name){ toast("שם חובה"); return; }
+  r.name=name; r.mispar=$("#edMispar").value.trim(); r.rank=$("#edRank").value.trim();
+  r.company=$("#edCompany").value; r.issuer=$("#edIssuer").value.trim();
+  r.dateOut=$("#edDate").value||r.dateOut; r.dateTarget=$("#edTarget").value||"";
+  // עדכון רשימות שמתמלאות לבד
+  const ex=state.soldiers.find(s=>s.name===name);
+  if(ex){ ex.mispar=r.mispar||ex.mispar; ex.rank=r.rank||ex.rank; if(r.company) ex.company=r.company; }
+  else state.soldiers.push({name,mispar:r.mispar,rank:r.rank,company:r.company});
+  if(r.issuer && !state.issuers.includes(r.issuer)) state.issuers.push(r.issuer);
+  save(); closeModal(); toast("ההחתמה עודכנה"); renderActive();
 }
 function viewSignout(id){
   const r=state.active.find(x=>x.id===id)||state.history.find(x=>x.id===id); if(!r) return;
   const cat=catalogFor(r.type); const inc=new Set(r.items);
   openModal(`<h2>פירוט החתמה — ${esc(r.name)}</h2>
-    <p class="muted">${r.company?'פלוגה '+esc(r.company)+' · ':''}${esc(r.type)} · ערכה #${r.kitNum} · קבלה ${fmtDate(r.dateOut)}</p>
+    <p class="muted">${r.company?'פלוגה '+esc(r.company)+' · ':''}${esc(r.type)} · ערכה #${r.kitNum} · קבלה ${fmtDate(r.dateOut)}${r.issuer?' · מחתים: '+esc(r.issuer):''}</p>
     <table><thead><tr><th>#</th><th>פריט</th><th>נמסר?</th></tr></thead><tbody>
     ${cat.map(it=>`<tr><td>${it.num}</td><td>${esc(it.name)}${it.primary?' ⭐':''}</td>
       <td>${inc.has(it.num)?'<span class="pill ok">כן</span>':'<span class="pill bad">לא</span>'}</td></tr>`).join("")}
@@ -464,6 +564,7 @@ function printForm(id){
       <div><b>מספר אישי:</b> ${esc(r.mispar)||"—"}</div>
       <div><b>דרגה:</b> ${esc(r.rank)||"—"}</div>
       <div><b>פלוגה:</b> ${esc(r.company)||"—"}</div>
+      <div><b>מחתים:</b> ${esc(r.issuer)||"—"}</div>
       <div><b>סוג רחפן:</b> ${esc(r.type)} · ערכה #${r.kitNum}</div>
       <div><b>תאריך קבלה:</b> ${fmtDate(r.dateOut)}</div>
       <div><b>תאריך החזרה ${returning?'בפועל':'(יעד)'}:</b> ${fmtDate(returning?r.dateReturn:r.dateTarget)||"—"}</div>
@@ -538,14 +639,14 @@ function renderHistory(){
       <select style="max-width:200px" onchange="setHistFilter(this.value)"><option value="">כל הפלוגות</option>${compOpts}</select>
     </div>
     ${rows.length===0?`<div class="empty">אין רשומות בפלוגה ${esc(histFilter)}.</div>`:`
-    <table><thead><tr><th>שם</th><th>מ.א</th><th>פלוגה</th><th>רחפן</th><th>ערכה</th><th>קבלה</th><th>החזרה</th><th>חוסרים בהחזרה</th><th>הערות</th><th></th></tr></thead>
+    <div class="table-wrap"><table class="cards"><thead><tr><th>שם</th><th>מ.א</th><th>פלוגה</th><th>מחתים</th><th>רחפן</th><th>ערכה</th><th>קבלה</th><th>החזרה</th><th>חוסרים בהחזרה</th><th>הערות</th><th>פעולות</th></tr></thead>
     <tbody>${rows.map(r=>`<tr>
-      <td>${esc(r.name)}</td><td>${esc(r.mispar)}</td><td>${esc(r.company)||'-'}</td><td>${esc(r.type)}</td><td>#${r.kitNum}</td>
-      <td>${fmtDate(r.dateOut)}</td><td>${fmtDate(r.dateReturn)}</td>
-      <td>${(r.missingOnReturn&&r.missingOnReturn.length)?`<span class="pill bad">${r.missingOnReturn.length}</span>`:'<span class="pill ok">0</span>'}</td>
-      <td>${esc(r.returnNotes||"")}</td>
-      <td class="right-actions"><button class="btn sm ghost" onclick="printForm(${r.id})">🖨️ טופס</button><button class="btn sm ghost" onclick="viewSignout(${r.id})">פירוט</button></td>
-    </tr>`).join("")}</tbody></table>`}`}
+      <td data-label="שם">${esc(r.name)}</td><td data-label="מ.א">${esc(r.mispar)}</td><td data-label="פלוגה">${esc(r.company)||'-'}</td><td data-label="מחתים">${esc(r.issuer)||'-'}</td><td data-label="רחפן">${esc(r.type)}</td><td data-label="ערכה">#${r.kitNum}</td>
+      <td data-label="קבלה">${fmtDate(r.dateOut)}</td><td data-label="החזרה">${fmtDate(r.dateReturn)}</td>
+      <td data-label="חוסרים בהחזרה">${(r.missingOnReturn&&r.missingOnReturn.length)?`<span class="pill bad">${r.missingOnReturn.length}</span>`:'<span class="pill ok">0</span>'}</td>
+      <td data-label="הערות">${esc(r.returnNotes||"")}</td>
+      <td class="acts"><button class="btn sm ghost" onclick="printForm(${r.id})">🖨️ טופס</button><button class="btn sm ghost" onclick="viewSignout(${r.id})">פירוט</button></td>
+    </tr>`).join("")}</tbody></table></div>`}`}
   </div>`;
 }
 
@@ -557,40 +658,51 @@ function renderCatalog(){
   main.innerHTML=`<div class="card">
     <h2>🧰 קטלוג פריטים — הגדרת הסט</h2>
     <p class="muted">כאן מגדירים אילו פריטים מרכיבים את הסט לכל סוג רחפן. שינוי כאן משפיע על כל החתמה חדשה — בלי לגעת ברשומות קיימות.</p>
+    ${isAdmin?'':`<div class="lockmsg">🔒 צפייה בלבד. כדי לערוך את הקטלוג לחץ על "🔒 מנהל" למעלה והזן סיסמה.</div>`}
     <div class="row">
       <div><label>סוג רחפן</label><select id="catType">${typeOpts}</select></div>
-      <div style="display:flex;align-items:flex-end"><button class="btn" id="addItem">➕ הוסף פריט</button></div>
-      <div style="display:flex;align-items:flex-end"><button class="btn ghost" id="addType">➕ סוג רחפן חדש</button></div>
+      ${isAdmin?`<div style="display:flex;align-items:flex-end"><button class="btn" id="addItem">➕ הוסף פריט</button></div>
+      <div style="display:flex;align-items:flex-end"><button class="btn ghost" id="addType">➕ סוג רחפן חדש</button></div>`:''}
     </div>
     <div id="catTable" style="margin-top:14px"></div>
   </div>`;
   $("#catType").addEventListener("change",drawCatTable);
-  $("#addItem").addEventListener("click",addCatItem);
-  $("#addType").addEventListener("click",addType);
+  if(isAdmin){ $("#addItem").addEventListener("click",addCatItem); $("#addType").addEventListener("click",addType); }
   drawCatTable();
 }
 function drawCatTable(){
   const type=$("#catType").value; const items=catalogFor(type);
-  $("#catTable").innerHTML=`<table><thead><tr><th>#</th><th>שם הפריט</th><th>ראשי (צ')</th><th>פעולות</th></tr></thead>
-  <tbody>${items.map(it=>`<tr>
-    <td>${it.num}</td>
-    <td><input value="${esc(it.name)}" onchange="editCatName('${esc(type)}',${it.num},this.value)"></td>
-    <td style="text-align:center"><input type="checkbox" ${it.primary?'checked':''} onchange="editCatPrimary('${esc(type)}',${it.num},this.checked)"></td>
-    <td><button class="btn sm red" onclick="delCatItem('${esc(type)}',${it.num})">מחק</button></td>
-  </tr>`).join("")}</tbody></table>
-  <p class="muted" style="margin-top:8px">סה"כ ${items.length} פריטים, מתוכם ${items.filter(i=>i.primary).length} ראשיים.</p>`;
+  if(isAdmin){
+    $("#catTable").innerHTML=`<div class="table-wrap"><table class="cards"><thead><tr><th>#</th><th>שם הפריט</th><th>ראשי (צ')</th><th>פעולות</th></tr></thead>
+    <tbody>${items.map(it=>`<tr>
+      <td data-label="#">${it.num}</td>
+      <td data-label="שם הפריט"><input value="${esc(it.name)}" onchange="editCatName('${esc(type)}',${it.num},this.value)"></td>
+      <td data-label="ראשי (צ')" style="text-align:center"><input type="checkbox" ${it.primary?'checked':''} onchange="editCatPrimary('${esc(type)}',${it.num},this.checked)"></td>
+      <td class="acts"><button class="btn sm red" onclick="delCatItem('${esc(type)}',${it.num})">מחק</button></td>
+    </tr>`).join("")}</tbody></table></div>
+    <p class="muted" style="margin-top:8px">סה"כ ${items.length} פריטים, מתוכם ${items.filter(i=>i.primary).length} ראשיים.</p>`;
+  } else {
+    $("#catTable").innerHTML=`<div class="table-wrap"><table class="cards"><thead><tr><th>#</th><th>שם הפריט</th><th>ראשי (צ')</th></tr></thead>
+    <tbody>${items.map(it=>`<tr>
+      <td data-label="#">${it.num}</td><td data-label="שם הפריט">${esc(it.name)}</td>
+      <td data-label="ראשי (צ')" style="text-align:center">${it.primary?'⭐':''}</td>
+    </tr>`).join("")}</tbody></table></div>
+    <p class="muted" style="margin-top:8px">סה"כ ${items.length} פריטים, מתוכם ${items.filter(i=>i.primary).length} ראשיים.</p>`;
+  }
 }
-window.editCatName=(t,n,v)=>{ const it=state.catalog.find(c=>c.type===t&&c.num==n); if(it){it.name=v.trim();save();} };
-window.editCatPrimary=(t,n,v)=>{ const it=state.catalog.find(c=>c.type===t&&c.num==n); if(it){it.primary=v;save();} };
-window.delCatItem=(t,n)=>{ if(!confirm("למחוק פריט זה מהקטלוג?"))return;
+window.editCatName=(t,n,v)=>{ if(!requireAdmin())return; const it=state.catalog.find(c=>c.type===t&&c.num==n); if(it){it.name=v.trim();save();} };
+window.editCatPrimary=(t,n,v)=>{ if(!requireAdmin())return; const it=state.catalog.find(c=>c.type===t&&c.num==n); if(it){it.primary=v;save();} };
+window.delCatItem=(t,n)=>{ if(!requireAdmin())return; if(!confirm("למחוק פריט זה מהקטלוג?"))return;
   state.catalog=state.catalog.filter(c=>!(c.type===t&&c.num==n)); save(); drawCatTable(); toast("נמחק"); };
 function addCatItem(){
+  if(!requireAdmin())return;
   const t=$("#catType").value; const name=prompt("שם הפריט החדש:"); if(!name)return;
   const nextNum=Math.max(0,...catalogFor(t).map(i=>i.num))+1;
   const primary=confirm("האם זה פריט ראשי (צ')?  אישור=כן, ביטול=לא");
   state.catalog.push({type:t,num:nextNum,name:name.trim(),primary}); save(); drawCatTable(); toast("נוסף");
 }
 function addType(){
+  if(!requireAdmin())return;
   const t=prompt("שם סוג הרחפן החדש (למשל MAVIC):"); if(!t)return;
   if(state.types.includes(t.trim())){ toast("סוג כבר קיים"); return; }
   state.types.push(t.trim()); save(); renderCatalog(); $("#catType").value=t.trim(); drawCatTable(); toast("נוסף סוג");
@@ -601,12 +713,16 @@ function addType(){
    ============================================================ */
 function renderKits(){
   const typeOpts=state.types.map(t=>`<option>${esc(t)}</option>`).join("");
+  const storeCount=state.kits.filter(k=>k.status==="באפסון").length;
   main.innerHTML=`<div class="card">
     <h2>📦 מלאי ערכות</h2>
     <div class="kpis" style="margin-bottom:14px">${state.types.map(t=>{
       const all=state.kits.filter(k=>k.type===t); const av=all.filter(k=>k.status==="זמין").length;
       return `<div class="kpi"><div class="n">${av}/${all.length}</div><div class="l">${esc(t)} זמינות</div></div>`;
-    }).join("")}</div>
+    }).join("")}
+      <div class="kpi"><div class="n" style="color:#2750a8">${storeCount}</div><div class="l">באפסון</div></div>
+    </div>
+    <p class="muted">סטטוס: <span class="pill ok">זמין</span> ניתן להחתמה · <span class="pill out">מושאל</span> אצל חייל · <span class="pill store">באפסון</span> במחסן/תיקון, לא זמין להחתמה.</p>
     <div class="row">
       <div><label>סוג</label><select id="kitType">${typeOpts}</select></div>
       <div style="display:flex;align-items:flex-end"><button class="btn" id="addKit">➕ הוסף ערכה</button></div>
@@ -620,16 +736,26 @@ function renderKits(){
 function drawKitTable(){
   const t=$("#kitType").value;
   const kits=state.kits.filter(k=>k.type===t).sort((a,b)=>a.num-b.num);
-  $("#kitTable").innerHTML=`<table><thead><tr><th>ערכה #</th><th>סטטוס</th><th>הערות</th><th>פעולות</th></tr></thead>
-  <tbody>${kits.map(k=>`<tr>
-    <td>#${k.num}</td>
-    <td><span class="pill ${k.status==="זמין"?'ok':'out'}">${esc(k.status)}</span></td>
-    <td><input value="${esc(k.notes||"")}" onchange="editKitNote('${esc(t)}',${k.num},this.value)"></td>
-    <td><button class="btn sm red" onclick="delKit('${esc(t)}',${k.num})" ${k.status!=="זמין"?'disabled title="ערכה מושאלת"':''}>מחק</button></td>
-  </tr>`).join("")}</tbody></table>`;
+  const pillCls=s=>s==="זמין"?"ok":s==="מושאל"?"out":"store";
+  $("#kitTable").innerHTML=`<div class="table-wrap"><table class="cards"><thead><tr><th>ערכה #</th><th>סטטוס</th><th>הערות</th><th>פעולות</th></tr></thead>
+  <tbody>${kits.map(k=>{
+    let actions="";
+    if(k.status==="זמין") actions=`<button class="btn sm" onclick="setKitStatus('${esc(t)}',${k.num},'באפסון')">📦 לאפסון</button>`;
+    else if(k.status==="באפסון") actions=`<button class="btn sm green" onclick="setKitStatus('${esc(t)}',${k.num},'זמין')">↩️ החזר לזמין</button>`;
+    else actions=`<span class="muted">מושאל לחייל</span>`;
+    return `<tr>
+    <td data-label="ערכה #">#${k.num}</td>
+    <td data-label="סטטוס"><span class="pill ${pillCls(k.status)}">${esc(k.status)}</span></td>
+    <td data-label="הערות"><input value="${esc(k.notes||"")}" onchange="editKitNote('${esc(t)}',${k.num},this.value)"></td>
+    <td class="acts">${actions}
+      <button class="btn sm red" onclick="delKit('${esc(t)}',${k.num})" ${k.status==="מושאל"?'disabled title="ערכה מושאלת"':''}>מחק</button></td>
+  </tr>`;}).join("")}</tbody></table></div>`;
 }
 window.editKitNote=(t,n,v)=>{ const k=kitObj(t,n); if(k){k.notes=v;save();} };
-window.delKit=(t,n)=>{ const k=kitObj(t,n); if(k&&k.status!=="זמין"){toast("לא ניתן למחוק ערכה מושאלת");return;}
+window.setKitStatus=(t,n,s)=>{ const k=kitObj(t,n); if(!k)return;
+  if(k.status==="מושאל"){ toast("ערכה מושאלת — החזר אותה דרך 'החתמות פעילות'"); return; }
+  k.status=s; save(); drawKitTable(); toast(s==="באפסון"?"הועברה לאפסון":"חזרה לזמין"); };
+window.delKit=(t,n)=>{ const k=kitObj(t,n); if(k&&k.status==="מושאל"){toast("לא ניתן למחוק ערכה מושאלת");return;}
   if(!confirm("למחוק ערכה זו?"))return; state.kits=state.kits.filter(x=>!(x.type===t&&x.num==n)); save(); drawKitTable(); };
 function addKit(){
   const t=$("#kitType").value; const next=Math.max(0,...state.kits.filter(k=>k.type===t).map(k=>k.num))+1;
@@ -666,14 +792,22 @@ function renderData(){
       <button class="btn ghost" id="loadDemo">🧪 טען נתוני דמו</button>
       <button class="btn red" id="resetAll">🗑️ אפס הכל</button>
     </div>
-    <p class="muted" style="margin-top:8px">"נתוני דמו" ממלא החתמות לדוגמה כדי להתרשם מהמסכים. "אפס הכל" מחזיר למצב נקי.</p>
+    <p class="muted" style="margin-top:8px">"נתוני דמו" ממלא החתמות לדוגמה כדי להתרשם מהמסכים. "אפס הכל" מחזיר למצב נקי (דורש מנהל).</p>
+    <h3>מנהל</h3>
+    ${isAdmin
+      ? `<p class="muted">מצב מנהל פעיל. עריכת קטלוג ואיפוס מאופשרים.</p><button class="btn ghost" id="chPin">🔑 שינוי סיסמת מנהל</button>`
+      : `<div class="lockmsg">🔒 פעולות מנהל (עריכת קטלוג, איפוס, שינוי סיסמה) דורשות כניסה. לחץ "🔒 מנהל" למעלה. סיסמת ברירת מחדל: <b>1234</b>.</div>`}
   </div>`;
   $("#expXlsx").addEventListener("click",exportXlsx);
   $("#expJson").addEventListener("click",exportJson);
   $("#impJson").addEventListener("click",()=>$("#impFile").click());
   $("#impFile").addEventListener("change",importJson);
   $("#loadDemo").addEventListener("click",loadDemo);
-  $("#resetAll").addEventListener("click",()=>{ if(confirm("לאפס את כל הנתונים לברירת מחדל? פעולה בלתי הפיכה.")){ state=freshState(); save(); toast("אופס"); rerender(); }});
+  $("#resetAll").addEventListener("click",()=>{ if(!requireAdmin())return; if(confirm("לאפס את כל הנתונים לברירת מחדל? פעולה בלתי הפיכה.")){ state=freshState(); save(); toast("אופס"); rerender(); }});
+  if(isAdmin) $("#chPin").addEventListener("click",()=>{
+    const p=prompt("סיסמת מנהל חדשה:"); if(!p)return;
+    state.adminPin=p; save(); toast("הסיסמה עודכנה");
+  });
 }
 function loadDemo(){
   if(!confirm("לטעון נתוני דמו? זה ידרוס את הנתונים הקיימים.")) return;
@@ -705,10 +839,10 @@ function exportXlsx(){
 }
 function buildSheets(){
   const itemNames=(type,nums)=>{ const m=new Map(catalogFor(type).map(c=>[c.num,c.name])); return nums.map(n=>m.get(n)||("#"+n)).join(", "); };
-  const signRow=r=>[r.id,r.name,r.mispar,r.rank,r.company||"",r.type,r.kitNum,r.items.length,itemNames(r.type,r.items),fmtDate(r.dateOut),r.dateTarget?fmtDate(r.dateTarget):""];
-  const active={name:"החתמות",rows:[["id","שם","מ.א","דרגה","פלוגה","סוג_רחפן","מספר_ערכה","מס׳ פריטים","פריטים","תאריך_קבלה","תאריך_יעד"],...state.active.map(signRow)]};
-  const hist={name:"היסטוריה",rows:[["id","שם","מ.א","דרגה","פלוגה","סוג_רחפן","מספר_ערכה","פריטים","תאריך_קבלה","תאריך_החזרה","חוסרים","הערות"],
-    ...state.history.map(r=>[r.id,r.name,r.mispar,r.rank,r.company||"",r.type,r.kitNum,itemNames(r.type,r.items),fmtDate(r.dateOut),fmtDate(r.dateReturn),(r.missingOnReturn||[]).length,r.returnNotes||""])]};
+  const signRow=r=>[r.id,r.name,r.mispar,r.rank,r.company||"",r.issuer||"",r.type,r.kitNum,r.items.length,itemNames(r.type,r.items),fmtDate(r.dateOut),r.dateTarget?fmtDate(r.dateTarget):""];
+  const active={name:"החתמות",rows:[["id","שם","מ.א","דרגה","פלוגה","מחתים","סוג_רחפן","מספר_ערכה","מס׳ פריטים","פריטים","תאריך_קבלה","תאריך_יעד"],...state.active.map(signRow)]};
+  const hist={name:"היסטוריה",rows:[["id","שם","מ.א","דרגה","פלוגה","מחתים","סוג_רחפן","מספר_ערכה","פריטים","תאריך_קבלה","תאריך_החזרה","חוסרים","הערות"],
+    ...state.history.map(r=>[r.id,r.name,r.mispar,r.rank,r.company||"",r.issuer||"",r.type,r.kitNum,itemNames(r.type,r.items),fmtDate(r.dateOut),fmtDate(r.dateReturn),(r.missingOnReturn||[]).length,r.returnNotes||""])]};
   const kits={name:"ערכות",rows:[["סוג_רחפן","מספר_ערכה","סטטוס","הערות"],...state.kits.map(k=>[k.type,k.num,k.status,k.notes||""])]};
   const cat={name:"קטלוג_פריטים",rows:[["סוג_רחפן","מספר_פריט","שם_פריט","ראשי"],...state.catalog.map(c=>[c.type,c.num,c.name,c.primary?"כן":"לא"])]};
   const sol={name:"חיילים",rows:[["שם","מ.א","דרגה","פלוגה"],...state.soldiers.map(s=>[s.name,s.mispar||"",s.rank||"",s.company||""])]};
