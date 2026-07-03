@@ -46,7 +46,7 @@ CONDITIONS = ["תקין", "תקין חלקית", "תקול", "חסר"]
 COND_FILL = {"תקין": "C6EFCE", "תקין חלקית": "FFF2CC", "תקול": "FFC7CE", "חסר": "FFC7CE"}
 
 # גדודים מוסרים (ערוך במקרא): עד 4
-BATTALIONS = ["גדוד א׳", "גדוד ב׳"]
+BATTALIONS = ["גדס\"ר", "699"]
 BAT_SLOTS = 4
 
 # שורות דוגמה (למחיקה): בית, קטגוריה, פריט, צ'?, מספר צ', מקור, כמות, מצב
@@ -61,7 +61,7 @@ DEMO = [
 ]
 
 # בתים לדוגמה: בית, גדוד מוסר
-HOUSES_DEMO = [("בית 1", "גדוד א׳"), ("בית 2", "גדוד א׳"), ("בית 3", "גדוד ב׳")]
+HOUSES_DEMO = [("בית 1", "גדס\"ר"), ("בית 2", "גדס\"ר"), ("בית 3", "699")]
 
 # ---------------------------------------------------------------- סגנון
 NAVY = "1F4E78"
@@ -284,8 +284,8 @@ for c, w in zip(range(1, SPAN + 1), (26, 18, 14, 12, 12, 16)):
     sig.column_dimensions[L(c)].width = w
 
 sig.cell(3, 1, "פרטי ההעברה").font = Font(bold=True, size=13)
-details = ["חטיבה", "גזרות", "גדוד מוסר א׳", "גדוד מוסר ב׳",
-           "הגדוד הקולט", "מפקד הגדוד הקולט", "תאריך ההעברה"]
+details = (["חטיבה", "הגדוד הקולט", "מפקד הגדוד הקולט"]
+           + [f"גזרת {b}" for b in BATTALIONS] + ["תאריך ההעברה"])
 for i, lab in enumerate(details):
     r = 4 + i
     lc = sig.cell(r, 1, lab); lc.font = bold; lc.alignment = right; lc.border = border
@@ -354,15 +354,10 @@ grow = drow + len(statements) + 2
 sig.cell(grow, 1, "חתימות").font = Font(bold=True, size=13)
 for j, lab in enumerate(["תפקיד", "שם מלא", "דרגה", "מס׳ אישי", "תאריך", "חתימה"], start=1):
     c = sig.cell(grow + 1, j, lab); c.fill = navy; c.font = wbf; c.alignment = center; c.border = border
-signers = [
-    "גדוד מוסר א׳ – מפקד",
-    "גדוד מוסר א׳ – קצין לוגיסטיקה / אפסנאי",
-    "גדוד מוסר ב׳ – מפקד",
-    "גדוד מוסר ב׳ – קצין לוגיסטיקה / אפסנאי",
-    "הגדוד הקולט – מפקד",
-    "הגדוד הקולט – קצין לוגיסטיקה / אפסנאי",
-    "נציג חטיבה",
-]
+signers = []
+for b in BATTALIONS:
+    signers += [f"{b} – מפקד", f"{b} – קצין לוגיסטיקה / אפסנאי"]
+signers += ["הגדוד הקולט – מפקד", "הגדוד הקולט – קצין לוגיסטיקה / אפסנאי", "נציג חטיבה"]
 for i, role in enumerate(signers):
     r = grow + 2 + i
     sig.row_dimensions[r].height = 24
