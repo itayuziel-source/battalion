@@ -1,16 +1,21 @@
 #!/usr/bin/env python3
 """טופס העברת גזרה והחלפת חתימות - החלפת גדוד מילואים.
 
+תומך בשתי גזרות / שני גדודים מוסרים: כל בית משויך לגדוד מוסר בגיליון
+'בתים ומוצבים', ועמודת 'גדוד מוסר' ברשימת הציוד מתמלאת אוטומטית לפי הבית
+(VLOOKUP, ניתן גם לבחור ידנית).
+
 גיליונות:
 - סקירה: דשבורד - סה"כ פריטים, פריטי צ', ציוד חטיבתי, פערים; פילוח לפי
-  קטגוריה ולפי בית/מוצב (מתעדכן אוטומטית מרשימת הציוד).
-- רשימת ציוד: הטבלה המרכזית שהגדוד היוצא ממלא - בית, קטגוריה, פריט,
-  האם פריט צ' + מספר צ', מקור (חטיבתי/גדודי), כמות ומצב. במעמד ההחלפה
-  הגדוד הקולט ממלא 'כמות שנבדקה' ועמודת הפער מחושבת לבד.
-- בתים ומוצבים: רשימת הבתים בגזרה (מזינה את הרשימה הנפתחת).
-- סיכום וחתימות: פרטי ההעברה, סיכום אוטומטי לפי קטגוריה, הצהרה
-  וטבלת חתימות מוסר/קולט/נציג חטיבה - מוכן להדפסה בשני עותקים.
-- מקרא והוראות: סדר הפעולות + רשימת הקטגוריות (מזינה את הרשימה הנפתחת).
+  גדוד מוסר, לפי קטגוריה ולפי בית/מוצב (מתעדכן אוטומטית מרשימת הציוד).
+- רשימת ציוד: הטבלה המרכזית שהגדודים היוצאים ממלאים - בית, גדוד מוסר,
+  קטגוריה, פריט, האם פריט צ' + מספר צ', מקור (חטיבתי/גדודי), כמות ומצב.
+  במעמד ההחלפה הגדוד הקולט ממלא 'כמות שנבדקה' ועמודת הפער מחושבת לבד.
+- בתים ומוצבים: רשימת הבתים בשתי הגזרות + שיוך לגדוד המוסר.
+- סיכום וחתימות: פרטי ההעברה, סיכום אוטומטי לפי גדוד מוסר ולפי קטגוריה,
+  הצהרה וטבלת חתימות לשני הגדודים המוסרים, לגדוד הקולט ולנציג החטיבה.
+- מקרא והוראות: סדר הפעולות + רשימות הקטגוריות והגדודים המוסרים
+  (מזינות את הרשימות הנפתחות).
 """
 
 from openpyxl import Workbook
@@ -40,6 +45,10 @@ SOURCES = ["חטיבתי", "גדודי", "אוגדתי", "אחר"]
 CONDITIONS = ["תקין", "תקין חלקית", "תקול", "חסר"]
 COND_FILL = {"תקין": "C6EFCE", "תקין חלקית": "FFF2CC", "תקול": "FFC7CE", "חסר": "FFC7CE"}
 
+# גדודים מוסרים (ערוך במקרא): עד 4
+BATTALIONS = ["גדוד א׳", "גדוד ב׳"]
+BAT_SLOTS = 4
+
 # שורות דוגמה (למחיקה): בית, קטגוריה, פריט, צ'?, מספר צ', מקור, כמות, מצב
 DEMO = [
     ("בית 1", "אופטיקה ותצפית", "משקפת יום", "כן", "100200", "חטיבתי", 2, "תקין"),
@@ -48,9 +57,11 @@ DEMO = [
     ("בית 2", "גנרטורים וחשמל", "גנרטור 5 קו\"ט", "כן", "778899", "חטיבתי", 1, "תקול"),
     ("בית 2", "מטבח ומזון", "מקרר", "לא", "", "חטיבתי", 2, "תקין"),
     ("בית 2", "מיגון", "שכפ\"צ", "לא", "", "גדודי", 10, "תקין"),
+    ("בית 3", "ציוד רפואי", "תיק חובש פלוגתי", "כן", "556677", "גדודי", 1, "תקין"),
 ]
 
-HOUSES_DEMO = ["בית 1", "בית 2", "בית 3"]
+# בתים לדוגמה: בית, גדוד מוסר
+HOUSES_DEMO = [("בית 1", "גדוד א׳"), ("בית 2", "גדוד א׳"), ("בית 3", "גדוד ב׳")]
 
 # ---------------------------------------------------------------- סגנון
 NAVY = "1F4E78"
@@ -99,14 +110,21 @@ HO_SH = "'בתים ומוצבים'"
 LEG_SH = "'מקרא והוראות'"
 EROW0, EROW1 = 3, 302        # שורות רשימת הציוד
 HROW0, HROW1 = 3, 32         # שורות בתים
-CAT_ROW0 = 20                # תחילת רשימת הקטגוריות במקרא
+CAT_ROW0 = 20                # תחילת רשימת הקטגוריות במקרא (עמודה A)
 CAT_ROW1 = CAT_ROW0 + len(CATEGORIES) - 1
+BAT_ROW0 = 20                # תחילת רשימת הגדודים במקרא (עמודה C)
+BAT_ROW1 = BAT_ROW0 + BAT_SLOTS - 1
+HOUSES_TBL = f"{HO_SH}!$A${HROW0}:$B${HROW1}"
+
+# עמודות רשימת הציוד:
+# A מס' | B בית | C גדוד מוסר | D קטגוריה | E פריט | F צ'? | G מספר צ' |
+# H מקור | I כמות נמסרת | J מצב | K כמות שנבדקה | L פער | M הערות
 
 # ================================================================ סקירה
 dash = wb.active
 dash.title = "סקירה"
 rtl(dash)
-title(dash, "העברת גזרה – סיכום ציוד ופערים", 11)
+title(dash, "העברת גזרה – סיכום ציוד ופערים", 14)
 
 def kpi(r, c, label, formula, fill=None):
     lc = dash.cell(r, c, label); lc.font = bold; lc.alignment = right; lc.border = border
@@ -116,25 +134,25 @@ def kpi(r, c, label, formula, fill=None):
         vc.fill = fill
     return vc
 
-for c, w in zip(range(1, 12), (20, 9, 3, 18, 9, 9, 9, 9, 3, 14, 9)):
+for c, w in zip(range(1, 15), (20, 9, 3, 18, 9, 9, 9, 9, 3, 14, 9, 9, 9, 9)):
     dash.column_dimensions[L(c)].width = w
 
 dash.cell(3, 1, "סיכום כללי").font = Font(bold=True, size=13)
-kpi(4, 1, "סה\"כ שורות ציוד", f"=COUNTA({EQ_SH}!$D${EROW0}:$D${EROW1})", gray)
-kpi(5, 1, "סה\"כ כמות נמסרת", f"=SUM({EQ_SH}!$H${EROW0}:$H${EROW1})", gray)
-kpi(6, 1, "פריטי צ׳", f'=COUNTIF({EQ_SH}!$E${EROW0}:$E${EROW1},"כן")', yellow)
-kpi(7, 1, "ציוד חטיבתי", f'=COUNTIF({EQ_SH}!$G${EROW0}:$G${EROW1},"חטיבתי")')
-kpi(8, 1, "ציוד גדודי", f'=COUNTIF({EQ_SH}!$G${EROW0}:$G${EROW1},"גדודי")')
+kpi(4, 1, "סה\"כ שורות ציוד", f"=COUNTA({EQ_SH}!$E${EROW0}:$E${EROW1})", gray)
+kpi(5, 1, "סה\"כ כמות נמסרת", f"=SUM({EQ_SH}!$I${EROW0}:$I${EROW1})", gray)
+kpi(6, 1, "פריטי צ׳", f'=COUNTIF({EQ_SH}!$F${EROW0}:$F${EROW1},"כן")', yellow)
+kpi(7, 1, "ציוד חטיבתי", f'=COUNTIF({EQ_SH}!$H${EROW0}:$H${EROW1},"חטיבתי")')
+kpi(8, 1, "ציוד גדודי", f'=COUNTIF({EQ_SH}!$H${EROW0}:$H${EROW1},"גדודי")')
 
 dash.cell(10, 1, "התראות").font = Font(bold=True, size=13)
 a1 = kpi(11, 1, "פריטים תקולים",
-         f'=COUNTIF({EQ_SH}!$I${EROW0}:$I${EROW1},"תקול")+COUNTIF({EQ_SH}!$I${EROW0}:$I${EROW1},"חסר")')
+         f'=COUNTIF({EQ_SH}!$J${EROW0}:$J${EROW1},"תקול")+COUNTIF({EQ_SH}!$J${EROW0}:$J${EROW1},"חסר")')
 a2 = kpi(12, 1, "שורות עם פער",
-         f'=SUMPRODUCT(({EQ_SH}!$K${EROW0}:$K${EROW1}<>"")*({EQ_SH}!$K${EROW0}:$K${EROW1}<>0))')
+         f'=SUMPRODUCT(({EQ_SH}!$L${EROW0}:$L${EROW1}<>"")*({EQ_SH}!$L${EROW0}:$L${EROW1}<>0))')
 a3 = kpi(13, 1, "פריטי צ׳ ללא מספר",
-         f'=SUMPRODUCT(({EQ_SH}!$E${EROW0}:$E${EROW1}="כן")*({EQ_SH}!$F${EROW0}:$F${EROW1}=""))')
+         f'=SUMPRODUCT(({EQ_SH}!$F${EROW0}:$F${EROW1}="כן")*({EQ_SH}!$G${EROW0}:$G${EROW1}=""))')
 a4 = kpi(14, 1, "טרם נבדקו ע\"י הקולט",
-         f'=SUMPRODUCT(({EQ_SH}!$D${EROW0}:$D${EROW1}<>"")*({EQ_SH}!$J${EROW0}:$J${EROW1}=""))')
+         f'=SUMPRODUCT(({EQ_SH}!$E${EROW0}:$E${EROW1}<>"")*({EQ_SH}!$K${EROW0}:$K${EROW1}=""))')
 for cell in (a1, a2, a3, a4):
     dash.conditional_formatting.add(cell.coordinate,
         CellIsRule(operator="greaterThan", formula=["0"], fill=red, font=bold))
@@ -147,10 +165,10 @@ for i, cat in enumerate(CATEGORIES, start=1):
     r = mrow + i
     rc = dash.cell(r, 4, cat); rc.alignment = right; rc.border = border
     vals = [
-        f'=COUNTIF({EQ_SH}!$C${EROW0}:$C${EROW1},$D{r})',
-        f'=SUMIF({EQ_SH}!$C${EROW0}:$C${EROW1},$D{r},{EQ_SH}!$H${EROW0}:$H${EROW1})',
-        f'=COUNTIFS({EQ_SH}!$C${EROW0}:$C${EROW1},$D{r},{EQ_SH}!$E${EROW0}:$E${EROW1},"כן")',
-        f'=SUMPRODUCT(({EQ_SH}!$C${EROW0}:$C${EROW1}=$D{r})*({EQ_SH}!$K${EROW0}:$K${EROW1}<>"")*({EQ_SH}!$K${EROW0}:$K${EROW1}<>0))',
+        f'=COUNTIF({EQ_SH}!$D${EROW0}:$D${EROW1},$D{r})',
+        f'=SUMIF({EQ_SH}!$D${EROW0}:$D${EROW1},$D{r},{EQ_SH}!$I${EROW0}:$I${EROW1})',
+        f'=COUNTIFS({EQ_SH}!$D${EROW0}:$D${EROW1},$D{r},{EQ_SH}!$F${EROW0}:$F${EROW1},"כן")',
+        f'=SUMPRODUCT(({EQ_SH}!$D${EROW0}:$D${EROW1}=$D{r})*({EQ_SH}!$L${EROW0}:$L${EROW1}<>"")*({EQ_SH}!$L${EROW0}:$L${EROW1}<>0))',
     ]
     for j, v in enumerate(vals, start=5):
         cc = dash.cell(r, j, v); cc.alignment = center; cc.border = border
@@ -163,71 +181,98 @@ for j in range(5, 9):
     cc = dash.cell(tr, j, f"=SUM({col}{mrow+1}:{col}{mrow+len(CATEGORIES)})")
     cc.font = bold; cc.alignment = center; cc.border = border
 
+# פילוח לפי גדוד מוסר
+brow = 3
+for j, lab in enumerate(["גדוד מוסר", "פריטים", "כמות", "פריטי צ׳", "פערים"], start=10):
+    c = dash.cell(brow, j, lab); c.fill = navy; c.font = wbf; c.alignment = center; c.border = border
+for i in range(BAT_SLOTS):
+    r = brow + 1 + i
+    src = f"{LEG_SH}!$C${BAT_ROW0 + i}"
+    dash.cell(r, 10, f'=IF({src}="","",{src})').alignment = right
+    vals = [
+        f'=IF({src}="","",COUNTIF({EQ_SH}!$C${EROW0}:$C${EROW1},{src}))',
+        f'=IF({src}="","",SUMIF({EQ_SH}!$C${EROW0}:$C${EROW1},{src},{EQ_SH}!$I${EROW0}:$I${EROW1}))',
+        f'=IF({src}="","",COUNTIFS({EQ_SH}!$C${EROW0}:$C${EROW1},{src},{EQ_SH}!$F${EROW0}:$F${EROW1},"כן"))',
+        f'=IF({src}="","",SUMPRODUCT(({EQ_SH}!$C${EROW0}:$C${EROW1}={src})*({EQ_SH}!$L${EROW0}:$L${EROW1}<>"")*({EQ_SH}!$L${EROW0}:$L${EROW1}<>0)))',
+    ]
+    for j, v in enumerate(vals, start=11):
+        cc = dash.cell(r, j, v); cc.alignment = center; cc.border = border
+    dash.cell(r, 10).border = border
+
 # פילוח לפי בית/מוצב
-hrow = 3
-for j, lab in enumerate(["בית / מוצב", "פריטים"], start=10):
+hrow = brow + BAT_SLOTS + 2
+for j, lab in enumerate(["בית / מוצב", "גדוד מוסר", "פריטים"], start=10):
     c = dash.cell(hrow, j, lab); c.fill = navy; c.font = wbf; c.alignment = center; c.border = border
 for i in range(15):
     r = hrow + 1 + i
     src = f"{HO_SH}!$A${HROW0 + i}"
+    bat = f"{HO_SH}!$B${HROW0 + i}"
     dash.cell(r, 10, f'=IF({src}="","",{src})').alignment = right
-    dash.cell(r, 11, f'=IF({src}="","",COUNTIF({EQ_SH}!$B${EROW0}:$B${EROW1},{src}))').alignment = center
-    dash.cell(r, 10).border = border; dash.cell(r, 11).border = border
+    dash.cell(r, 11, f'=IF({src}="","",{bat})').alignment = center
+    dash.cell(r, 12, f'=IF({src}="","",COUNTIF({EQ_SH}!$B${EROW0}:$B${EROW1},{src}))').alignment = center
+    for c in (10, 11, 12):
+        dash.cell(r, c).border = border
 
 # ================================================================ רשימת ציוד
 eq = wb.create_sheet("רשימת ציוד")
 rtl(eq)
-eq_heads = ["מס׳", "בית / מוצב", "קטגוריה", "שם הפריט", "פריט צ׳?", "מספר צ׳",
-            "מקור הציוד", "כמות נמסרת", "מצב", "כמות שנבדקה (קולט)", "פער", "הערות"]
-title(eq, "רשימת ציוד להעברה – ממולא ע\"י הגדוד המוסר", len(eq_heads))
-head(eq, 2, eq_heads, [5, 12, 16, 30, 9, 12, 11, 10, 11, 12, 7, 26])
+eq_heads = ["מס׳", "בית / מוצב", "גדוד מוסר", "קטגוריה", "שם הפריט", "פריט צ׳?",
+            "מספר צ׳", "מקור הציוד", "כמות נמסרת", "מצב", "כמות שנבדקה (קולט)",
+            "פער", "הערות"]
+title(eq, "רשימת ציוד להעברה – ממולא ע\"י הגדודים המוסרים", len(eq_heads))
+head(eq, 2, eq_heads, [5, 12, 12, 16, 30, 9, 12, 11, 10, 11, 12, 7, 26])
 for i in range(EROW0, EROW1 + 1):
-    eq.cell(i, 1, f'=IF($D{i}="","",ROW()-2)').alignment = center
-    eq.cell(i, 11, f'=IF(OR($H{i}="",$J{i}=""),"",$H{i}-$J{i})').alignment = center
-    for c in range(1, 13):
+    eq.cell(i, 1, f'=IF($E{i}="","",ROW()-2)').alignment = center
+    eq.cell(i, 3, f'=IF($B{i}="","",IFERROR(VLOOKUP($B{i},{HOUSES_TBL},2,FALSE),""))').alignment = center
+    eq.cell(i, 12, f'=IF(OR($I{i}="",$K{i}=""),"",$I{i}-$K{i})').alignment = center
+    for c in range(1, 14):
         cell = eq.cell(i, c)
         cell.border = border
         if cell.alignment.horizontal is None:
-            cell.alignment = right if c in (4, 12) else center
+            cell.alignment = right if c in (5, 13) else center
 for i, (house, cat, item, tz, tznum, src, qty, cond) in enumerate(DEMO):
     r = EROW0 + i
-    for c, v in zip((2, 3, 4, 5, 6, 7, 8, 9), (house, cat, item, tz, tznum, src, qty, cond)):
+    for c, v in zip((2, 4, 5, 6, 7, 8, 9, 10), (house, cat, item, tz, tznum, src, qty, cond)):
         eq.cell(r, c, v)
-    eq.cell(r, 12, "דוגמה – מחק שורה זו")
+    eq.cell(r, 13, "דוגמה – מחק שורה זו")
 eq.freeze_panes = "A3"
 
 add_dv(eq, f"={HO_SH}!$A${HROW0}:$A${HROW1}", f"B{EROW0}:B{EROW1}")
-add_dv(eq, f"={LEG_SH}!$A${CAT_ROW0}:$A${CAT_ROW1}", f"C{EROW0}:C{EROW1}")
-add_dv(eq, '"כן,לא"', f"E{EROW0}:E{EROW1}")
-add_dv(eq, '"' + ",".join(SOURCES) + '"', f"G{EROW0}:G{EROW1}")
-add_dv(eq, '"' + ",".join(CONDITIONS) + '"', f"I{EROW0}:I{EROW1}")
+add_dv(eq, f"={LEG_SH}!$C${BAT_ROW0}:$C${BAT_ROW1}", f"C{EROW0}:C{EROW1}")
+add_dv(eq, f"={LEG_SH}!$A${CAT_ROW0}:$A${CAT_ROW1}", f"D{EROW0}:D{EROW1}")
+add_dv(eq, '"כן,לא"', f"F{EROW0}:F{EROW1}")
+add_dv(eq, '"' + ",".join(SOURCES) + '"', f"H{EROW0}:H{EROW1}")
+add_dv(eq, '"' + ",".join(CONDITIONS) + '"', f"J{EROW0}:J{EROW1}")
 
-eq.conditional_formatting.add(f"E{EROW0}:E{EROW1}",
-    CellIsRule(operator="equal", formula=['"כן"'], fill=yellow))
 eq.conditional_formatting.add(f"F{EROW0}:F{EROW1}",
-    FormulaRule(formula=[f'AND($E{EROW0}="כן",$F{EROW0}="")'], fill=red))
+    CellIsRule(operator="equal", formula=['"כן"'], fill=yellow))
+eq.conditional_formatting.add(f"G{EROW0}:G{EROW1}",
+    FormulaRule(formula=[f'AND($F{EROW0}="כן",$G{EROW0}="")'], fill=red))
 for s, color in COND_FILL.items():
-    eq.conditional_formatting.add(f"I{EROW0}:I{EROW1}",
+    eq.conditional_formatting.add(f"J{EROW0}:J{EROW1}",
         CellIsRule(operator="equal", formula=[f'"{s}"'],
                    fill=PatternFill("solid", fgColor=color)))
-eq.conditional_formatting.add(f"K{EROW0}:K{EROW1}",
-    FormulaRule(formula=[f'AND($K{EROW0}<>"",$K{EROW0}<>0)'], fill=red, font=bold))
-eq.conditional_formatting.add(f"K{EROW0}:K{EROW1}",
-    FormulaRule(formula=[f'AND($K{EROW0}<>"",$K{EROW0}=0)'], fill=green))
+eq.conditional_formatting.add(f"L{EROW0}:L{EROW1}",
+    FormulaRule(formula=[f'AND($L{EROW0}<>"",$L{EROW0}<>0)'], fill=red, font=bold))
+eq.conditional_formatting.add(f"L{EROW0}:L{EROW1}",
+    FormulaRule(formula=[f'AND($L{EROW0}<>"",$L{EROW0}=0)'], fill=green))
 
 # ================================================================ בתים ומוצבים
 ho = wb.create_sheet("בתים ומוצבים")
 rtl(ho)
-title(ho, "בתים ומוצבים בגזרה", 4)
-head(ho, 2, ["בית / מוצב", "אחראי (גדוד מוסר)", "טלפון", "הערות"], [16, 20, 15, 28])
-for i, h in enumerate(HOUSES_DEMO):
+title(ho, "בתים ומוצבים בשתי הגזרות", 5)
+head(ho, 2, ["בית / מוצב", "גדוד מוסר", "אחראי (גדוד מוסר)", "טלפון", "הערות"],
+     [16, 14, 20, 15, 28])
+for i, (h, bat) in enumerate(HOUSES_DEMO):
     ho.cell(HROW0 + i, 1, h).alignment = center
-    ho.cell(HROW0 + i, 4, "דוגמה – ערוך").alignment = right
+    ho.cell(HROW0 + i, 2, bat).alignment = center
+    ho.cell(HROW0 + i, 5, "דוגמה – ערוך").alignment = right
 for r in range(HROW0, HROW1 + 1):
-    for c in range(1, 5):
+    for c in range(1, 6):
         cell = ho.cell(r, c); cell.border = border
         if cell.alignment.horizontal is None:
-            cell.alignment = center if c == 1 else right
+            cell.alignment = center if c in (1, 2) else right
+add_dv(ho, f"={LEG_SH}!$C${BAT_ROW0}:$C${BAT_ROW1}", f"B{HROW0}:B{HROW1}")
 ho.freeze_panes = "A3"
 
 # ================================================================ סיכום וחתימות
@@ -235,11 +280,11 @@ sig = wb.create_sheet("סיכום וחתימות")
 rtl(sig)
 SPAN = 6
 title(sig, "פרוטוקול העברת גזרה והחלפת חתימות", SPAN)
-for c, w in zip(range(1, SPAN + 1), (22, 18, 14, 12, 12, 16)):
+for c, w in zip(range(1, SPAN + 1), (26, 18, 14, 12, 12, 16)):
     sig.column_dimensions[L(c)].width = w
 
 sig.cell(3, 1, "פרטי ההעברה").font = Font(bold=True, size=13)
-details = ["חטיבה", "גזרה", "הגדוד המוסר", "מפקד הגדוד המוסר",
+details = ["חטיבה", "גזרות", "גדוד מוסר א׳", "גדוד מוסר ב׳",
            "הגדוד הקולט", "מפקד הגדוד הקולט", "תאריך ההעברה"]
 for i, lab in enumerate(details):
     r = 4 + i
@@ -249,18 +294,38 @@ for i, lab in enumerate(details):
     for c in (2, 3):
         sig.cell(r, c).border = border
 
-srow = 4 + len(details) + 1
-sig.cell(srow, 1, "סיכום ציוד לפי קטגוריה (אוטומטי)").font = Font(bold=True, size=13)
+# סיכום לפי גדוד מוסר
+brow = 4 + len(details) + 1
+sig.cell(brow, 1, "סיכום לפי גדוד מוסר (אוטומטי)").font = Font(bold=True, size=13)
+for j, lab in enumerate(["גדוד מוסר", "פריטים", "כמות", "פריטי צ׳", "פערים"], start=1):
+    c = sig.cell(brow + 1, j, lab); c.fill = navy; c.font = wbf; c.alignment = center; c.border = border
+for i in range(BAT_SLOTS):
+    r = brow + 2 + i
+    src = f"{LEG_SH}!$C${BAT_ROW0 + i}"
+    sig.cell(r, 1, f'=IF({src}="","",{src})').alignment = right
+    vals = [
+        f'=IF({src}="","",COUNTIF({EQ_SH}!$C${EROW0}:$C${EROW1},{src}))',
+        f'=IF({src}="","",SUMIF({EQ_SH}!$C${EROW0}:$C${EROW1},{src},{EQ_SH}!$I${EROW0}:$I${EROW1}))',
+        f'=IF({src}="","",COUNTIFS({EQ_SH}!$C${EROW0}:$C${EROW1},{src},{EQ_SH}!$F${EROW0}:$F${EROW1},"כן"))',
+        f'=IF({src}="","",SUMPRODUCT(({EQ_SH}!$C${EROW0}:$C${EROW1}={src})*({EQ_SH}!$L${EROW0}:$L${EROW1}<>"")*({EQ_SH}!$L${EROW0}:$L${EROW1}<>0)))',
+    ]
+    for j, v in enumerate(vals, start=2):
+        cc = sig.cell(r, j, v); cc.alignment = center; cc.border = border
+    sig.cell(r, 1).border = border
+
+# סיכום לפי קטגוריה
+srow = brow + 2 + BAT_SLOTS + 1
+sig.cell(srow, 1, "סיכום לפי קטגוריה (אוטומטי)").font = Font(bold=True, size=13)
 for j, lab in enumerate(["קטגוריה", "פריטים", "כמות", "פריטי צ׳", "פערים"], start=1):
     c = sig.cell(srow + 1, j, lab); c.fill = navy; c.font = wbf; c.alignment = center; c.border = border
 for i, cat in enumerate(CATEGORIES, start=1):
     r = srow + 1 + i
     rc = sig.cell(r, 1, cat); rc.alignment = right; rc.border = border
     vals = [
-        f'=COUNTIF({EQ_SH}!$C${EROW0}:$C${EROW1},$A{r})',
-        f'=SUMIF({EQ_SH}!$C${EROW0}:$C${EROW1},$A{r},{EQ_SH}!$H${EROW0}:$H${EROW1})',
-        f'=COUNTIFS({EQ_SH}!$C${EROW0}:$C${EROW1},$A{r},{EQ_SH}!$E${EROW0}:$E${EROW1},"כן")',
-        f'=SUMPRODUCT(({EQ_SH}!$C${EROW0}:$C${EROW1}=$A{r})*({EQ_SH}!$K${EROW0}:$K${EROW1}<>"")*({EQ_SH}!$K${EROW0}:$K${EROW1}<>0))',
+        f'=COUNTIF({EQ_SH}!$D${EROW0}:$D${EROW1},$A{r})',
+        f'=SUMIF({EQ_SH}!$D${EROW0}:$D${EROW1},$A{r},{EQ_SH}!$I${EROW0}:$I${EROW1})',
+        f'=COUNTIFS({EQ_SH}!$D${EROW0}:$D${EROW1},$A{r},{EQ_SH}!$F${EROW0}:$F${EROW1},"כן")',
+        f'=SUMPRODUCT(({EQ_SH}!$D${EROW0}:$D${EROW1}=$A{r})*({EQ_SH}!$L${EROW0}:$L${EROW1}<>"")*({EQ_SH}!$L${EROW0}:$L${EROW1}<>0))',
     ]
     for j, v in enumerate(vals, start=2):
         cc = sig.cell(r, j, v); cc.alignment = center; cc.border = border
@@ -275,7 +340,7 @@ drow = trow + 2
 sig.cell(drow, 1, "הצהרה").font = Font(bold=True, size=13)
 statements = [
     "אנו החתומים מטה מאשרים כי:",
-    "1. הציוד המפורט בגיליון 'רשימת ציוד' נספר ונבדק במעמד נציגי שני הגדודים.",
+    "1. הציוד המפורט בגיליון 'רשימת ציוד' נספר ונבדק במעמד נציגי הגדודים המוסרים והגדוד הקולט.",
     "2. הגדוד הקולט מאשר את קבלת הציוד בכמויות ובמצב כמפורט, למעט הפערים שצוינו.",
     "3. פערים שנרשמו יתועדו ויטופלו מול החטיבה.",
     "4. האחריות על הציוד, לרבות פריטי הצ׳, עוברת לגדוד הקולט מרגע החתימה.",
@@ -290,8 +355,10 @@ sig.cell(grow, 1, "חתימות").font = Font(bold=True, size=13)
 for j, lab in enumerate(["תפקיד", "שם מלא", "דרגה", "מס׳ אישי", "תאריך", "חתימה"], start=1):
     c = sig.cell(grow + 1, j, lab); c.fill = navy; c.font = wbf; c.alignment = center; c.border = border
 signers = [
-    "הגדוד המוסר – מפקד",
-    "הגדוד המוסר – קצין לוגיסטיקה / אפסנאי",
+    "גדוד מוסר א׳ – מפקד",
+    "גדוד מוסר א׳ – קצין לוגיסטיקה / אפסנאי",
+    "גדוד מוסר ב׳ – מפקד",
+    "גדוד מוסר ב׳ – קצין לוגיסטיקה / אפסנאי",
     "הגדוד הקולט – מפקד",
     "הגדוד הקולט – קצין לוגיסטיקה / אפסנאי",
     "נציג חטיבה",
@@ -304,7 +371,7 @@ for i, role in enumerate(signers):
         sig.cell(r, c).border = border
 last = grow + 2 + len(signers)
 sig.merge_cells(start_row=last + 1, start_column=1, end_row=last + 1, end_column=SPAN)
-sig.cell(last + 1, 1, "* מומלץ להדפיס בשני עותקים – עותק לכל גדוד.").alignment = right
+sig.cell(last + 1, 1, "* מומלץ להדפיס עותק לכל גדוד מוסר + עותק לגדוד הקולט.").alignment = right
 sig.print_area = f"A1:F{last + 1}"
 sig.page_setup.fitToWidth = 1
 sig.page_setup.fitToHeight = 1
@@ -319,14 +386,17 @@ for c in "BCDE":
     leg.column_dimensions[c].width = 18
 leg.cell(3, 1, "סדר הפעולות:").font = Font(bold=True, size=13)
 steps = [
-    "1. הגדוד המוסר ממלא את גיליון 'בתים ומוצבים' – רשימת הבתים/העמדות בגזרה.",
-    "2. הגדוד המוסר ממלא את 'רשימת ציוד' – שורה לכל פריט: בית, קטגוריה, שם הפריט,",
+    "1. עדכן בגיליון זה את שמות הגדודים המוסרים (עמודת 'גדודים מוסרים' למטה).",
+    "2. הגדודים המוסרים ממלאים את 'בתים ומוצבים' – כל בית משויך לגדוד המוסר שלו.",
+    "3. ממלאים את 'רשימת ציוד' – שורה לכל פריט: בית, קטגוריה, שם הפריט,",
     "    האם פריט צ׳ (ואם כן – מספר הצ׳), מקור הציוד (חטיבתי/גדודי), כמות ומצב.",
-    "3. במעמד ההחלפה: נציג הגדוד הקולט סופר את הציוד וממלא 'כמות שנבדקה' –",
+    "    עמודת 'גדוד מוסר' מתמלאת אוטומטית לפי הבית (ואפשר גם לבחור ידנית).",
+    "4. במעמד ההחלפה: נציג הגדוד הקולט סופר את הציוד וממלא 'כמות שנבדקה' –",
     "    עמודת הפער מחושבת אוטומטית ונצבעת באדום כשיש אי-התאמה.",
-    "4. פריט צ׳ ללא מספר צ׳ נצבע באדום – חובה להשלים לפני חתימה.",
-    "5. בודקים את גיליון 'סקירה' – פערים, תקולים ושורות שטרם נבדקו.",
-    "6. ממלאים את פרטי ההעברה וחותמים בגיליון 'סיכום וחתימות' (להדפיס בשני עותקים).",
+    "5. פריט צ׳ ללא מספר צ׳ נצבע באדום – חובה להשלים לפני חתימה.",
+    "6. בודקים את גיליון 'סקירה' – פערים לפי גדוד מוסר, תקולים ושורות שטרם נבדקו.",
+    "7. ממלאים את פרטי ההעברה וחותמים בגיליון 'סיכום וחתימות'",
+    "    (להדפיס עותק לכל גדוד מוסר + עותק לגדוד הקולט).",
     "",
     "שורות הדוגמה ברשימת הציוד ובבתים מסומנות 'דוגמה' – מחק/ערוך אותן.",
 ]
@@ -335,17 +405,27 @@ for i, t in enumerate(steps):
     leg.merge_cells(start_row=r, start_column=1, end_row=r, end_column=5)
     leg.cell(r, 1, t).alignment = right
 
-leg.cell(15, 1, "צבעים:").font = bold
-legend_colors = [(yellow, "פריט צ׳"), (green, "תקין / נבדק ללא פער"),
-                 (red, "תקול / חסר / פער / צ׳ בלי מספר")]
-for i, (fill, lab) in enumerate(legend_colors):
-    sw = leg.cell(16 + i, 1); sw.fill = fill; sw.border = border
-    leg.cell(16 + i, 2, lab).alignment = right
-
-cc = leg.cell(CAT_ROW0 - 1, 1, "קטגוריות (מזין את הרשימה הנפתחת):")
+# מקרא צבעים (מתחת לרשימות כדי לא להתנגש)
+cc = leg.cell(CAT_ROW0 - 1, 1, "קטגוריות (רשימה נפתחת):")
 cc.font = bold
 for i, cat in enumerate(CATEGORIES):
     c = leg.cell(CAT_ROW0 + i, 1, cat); c.alignment = right; c.border = border
+
+bc = leg.cell(BAT_ROW0 - 1, 3, "גדודים מוסרים (רשימה נפתחת):")
+bc.font = bold
+for i in range(BAT_SLOTS):
+    c = leg.cell(BAT_ROW0 + i, 3)
+    if i < len(BATTALIONS):
+        c.value = BATTALIONS[i]
+    c.alignment = center; c.border = border
+
+crow = CAT_ROW1 + 2
+leg.cell(crow, 1, "צבעים:").font = bold
+legend_colors = [(yellow, "פריט צ׳"), (green, "תקין / נבדק ללא פער"),
+                 (red, "תקול / חסר / פער / צ׳ בלי מספר")]
+for i, (fill, lab) in enumerate(legend_colors):
+    sw = leg.cell(crow + 1 + i, 1); sw.fill = fill; sw.border = border
+    leg.cell(crow + 1 + i, 2, lab).alignment = right
 
 OUT = "equipment_handover.xlsx"
 wb.save(OUT)
