@@ -336,7 +336,27 @@ for name, comps, rec, stk, tot in sorted(alloc_rows, key=lambda t: -sum(t[1][i*2
     if total_free:
         p.cell(r, c0 + 1).fill = yellow; p.cell(r, c0 + 1).font = bold
     r += 1
-p.conditional_formatting.add(f"{L(c0+2)}5:{L(c0+2)}{r-1}",
+# M16 - אין הקצאה פלוגתית; חתימות בפועל לפי דוח החתימות האישי
+M16_SIGNED = {"פלוגה א": 0, "פלוגה ב": 1, "פלוגה ג": 1, "מסייעת": 5, "פלס\"ם": 33}
+mc = p.cell(r, 1, "M16 (חתום בפועל)"); mc.alignment = right; mc.border = border
+mc.font = bold; mc.fill = gray
+for ci, comp in enumerate(COMPANIES):
+    sc = p.cell(r, 2 + ci * 2, M16_SIGNED[comp])
+    fc = p.cell(r, 3 + ci * 2, "—")
+    for cell in (sc, fc):
+        cell.alignment = center; cell.border = border; cell.fill = gray
+    sc.font = bold
+for off, v in enumerate(["—", "—", ""]):
+    cell = p.cell(r, c0 + off, v); cell.alignment = center; cell.border = border; cell.fill = gray
+p.cell(r, c0 + 2, f"סה\"כ {sum(M16_SIGNED.values())}").font = bold
+m16_row = r
+r += 1
+p.merge_cells(start_row=r, start_column=1, end_row=r, end_column=ncols)
+nt = p.cell(r, 1, "* M16 אינו מוקצה לפלוגות (מנוהל ברמת הגדוד) – השורה מציגה חתימות בפועל "
+               f"לפי דוח החתימות האישי; עוד {BY_NAME['M16'][3]} במלאי הגדודי.")
+nt.alignment = right; nt.font = Font(color="44546A", size=10)
+r += 1
+p.conditional_formatting.add(f"{L(c0+2)}5:{L(c0+2)}{m16_row-1}",
     CellIsRule(operator="lessThan", formula=["0.75"], fill=red, font=bold))
 p.conditional_formatting.add(f"{L(c0+2)}5:{L(c0+2)}{r-1}",
     CellIsRule(operator="greaterThanOrEqual", formula=["0.9"], fill=green))
