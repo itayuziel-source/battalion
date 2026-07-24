@@ -468,6 +468,7 @@
   <section class="pane" id="pane-report">
     <div class="report-actions">
       <button class="btn primary" id="printBtn">🖨 הדפסה / שמירה כ־PDF</button>
+      <button class="btn" id="downloadReportBtn">⬇ הורדת קובץ הדוח</button>
       <button class="btn" id="backToPrep">→ חזרה לעריכה</button>
       <button class="btn" id="saveToArchive2">שמור לארכיון</button>
     </div>
@@ -1056,9 +1057,93 @@
       '</div>';
   }
 
+  /* Standalone printable report document (opens in a new window or downloads
+     as a file) — needed because the embedded viewer may block window.print(). */
+  var REPORT_CSS =
+    '*{box-sizing:border-box}' +
+    'body{margin:0;background:#f3f3ee;font-family:"Segoe UI",Arial,"Noto Sans Hebrew",sans-serif;color:#000;font-size:14px;line-height:1.5;direction:rtl}' +
+    '.sheet{max-width:820px;margin:14px auto 24px;background:#fff;padding:28px 34px;border:1px solid #ccc}' +
+    '.printbar{max-width:820px;margin:16px auto 0;padding:0 4px;display:flex;justify-content:flex-start}' +
+    '.printbar button{font-family:inherit;font-size:15px;font-weight:700;padding:10px 22px;border-radius:8px;border:none;background:#4A5A33;color:#fff;cursor:pointer}' +
+    '.doc-head{display:flex;justify-content:space-between;gap:14px;border-bottom:3px double #000;padding-bottom:12px;margin-bottom:16px}' +
+    '.doc-head .cls{font-size:12px;font-weight:800;color:#8a1f14;letter-spacing:1px}' +
+    'h3.doc-title{margin:2px 0 0;font-size:22px}' +
+    '.doc-meta{font-size:13px;color:#444;text-align:left;white-space:nowrap}' +
+    'h4{margin:20px 0 8px;font-size:14px;border-bottom:1.5px solid #4A5A33;padding-bottom:3px}' +
+    'h4 .secnum{color:#4A5A33}' +
+    '.kv{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:6px 24px;font-size:14px}' +
+    '.kv div b{color:#555;font-size:12.5px;display:block}' +
+    '.table-wrap{overflow-x:auto}' +
+    'table{border-collapse:collapse;width:100%;font-size:13px}' +
+    'thead th{background:#e8ecdc;text-align:right;padding:8px 9px;font-size:12.5px;border-bottom:2px solid #4A5A33;white-space:nowrap}' +
+    'tbody td{padding:7px 9px;border-bottom:1px solid #ddd;vertical-align:middle}' +
+    'tbody tr:nth-child(even){background:#fafaf5}' +
+    '.totals-row td{font-weight:800;background:#e8ecdc}' +
+    '.cellnum{font-variant-numeric:tabular-nums}' +
+    '.plan-veh{margin-bottom:16px;break-inside:avoid}' +
+    '.plan-veh>b{font-size:14px}' +
+    '.plan-grid{display:grid;grid-template-columns:1fr 1fr;gap:5px;font-size:12.5px;margin-top:6px}' +
+    '.plan-grid.single{grid-template-columns:1fr;max-width:340px}' +
+    '.plan-cell{border:1px solid #ccc;border-radius:5px;padding:4px 9px}' +
+    '.plan-cell b{color:#4A5A33;font-variant-numeric:tabular-nums}' +
+    '.plan-cargo{margin:6px 0 0;font-size:13.5px;white-space:pre-wrap;border:1.5px solid #a5680f;border-radius:6px;padding:7px 11px;background:#f6ecd9}' +
+    '.prose{font-size:13.5px;white-space:pre-wrap}' +
+    'ul.report-checks{columns:2;margin:4px 0;padding-inline-start:20px;font-size:13.5px}' +
+    '.sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:38px;break-inside:avoid}' +
+    '.sig{text-align:center;font-size:13px}' +
+    '.sig .line{border-bottom:1.5px solid #000;height:40px;margin-bottom:6px}' +
+    '.sig b{display:block}' +
+    '.sig span{color:#555;font-size:12px}' +
+    '.empty-note{color:#666;padding:10px;text-align:center}' +
+    '@page{margin:14mm}' +
+    '@media print{body{background:#fff}.sheet{border:none;margin:0;padding:0;max-width:none}.printbar{display:none}' +
+    'thead th,.totals-row td{-webkit-print-color-adjust:exact;print-color-adjust:exact}tr,.plan-veh,.sigs{break-inside:avoid}}';
+
+  function buildReportDoc(autoPrint) {
+    renderReport();
+    var m = state.mission;
+    var title = (m.title || 'פקודת שיירה') + (m.date ? ' — ' + fmtDate(m.date) : '');
+    return '<!doctype html><html dir="rtl" lang="he"><head><meta charset="utf-8">' +
+      '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+      '<title>' + esc(title) + '</title><style>' + REPORT_CSS + '</style></head><body>' +
+      '<div class="printbar"><button onclick="window.print()">🖨 הדפסה / שמירה כ־PDF</button></div>' +
+      '<div class="sheet">' + $('#reportSheet').innerHTML + '</div>' +
+      (autoPrint ? '<scr' + 'ipt>setTimeout(function(){try{window.print()}catch(e){}},400)</scr' + 'ipt>' : '') +
+      '</body></html>';
+  }
+
+  function downloadReport(showToast) {
+    var m = state.mission;
+    var html = buildReportDoc(false);
+    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'convoy-order' + (m.date ? '-' + m.date : '') + '.html';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+    if (showToast !== false) toast('קובץ הדוח ירד — פתחו אותו ולחצו "הדפסה" לשמירת PDF');
+  }
+
+  function smartPrint() {
+    var w = null;
+    try { w = window.open('', '_blank'); } catch (e) { w = null; }
+    if (w && w.document) {
+      w.document.open();
+      w.document.write(buildReportDoc(true));
+      w.document.close();
+      try { w.focus(); } catch (e2) {}
+    } else {
+      downloadReport(false);
+      toast('חלון ההדפסה חסום כאן — קובץ הדוח ירד במקום. פתחו אותו ולחצו "הדפסה"');
+    }
+  }
+
   $('#goReport').addEventListener('click', function () { showTab('report'); });
   $('#backToPrep').addEventListener('click', function () { showTab('prep'); });
-  $('#printBtn').addEventListener('click', function () { window.print(); });
+  $('#printBtn').addEventListener('click', smartPrint);
+  $('#downloadReportBtn').addEventListener('click', function () { downloadReport(); });
 
   /* ---------------- Archive ---------------- */
   function archiveCurrent() {
