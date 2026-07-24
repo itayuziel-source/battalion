@@ -183,6 +183,39 @@
   td input.invalid { border-color: var(--crit); background: var(--crit-soft); }
   td .cellnum { font-variant-numeric: tabular-nums; }
 
+  /* ---------- Loading plan (truck bed) ---------- */
+  .load-row > td { background: var(--surface-2) !important; padding: 14px 16px; }
+  .load-flex { display: flex; gap: 18px; flex-wrap: wrap; align-items: stretch; }
+  .truckbed {
+    display: flex; flex-direction: column; gap: 7px; flex: 1; min-width: 300px; max-width: 540px;
+    border: 2px solid var(--line); border-radius: 12px; padding: 10px 12px; background: var(--surface);
+  }
+  .truckbed .cab, .truckbed .tail {
+    text-align: center; font-size: 11.5px; color: var(--muted); font-weight: 700; letter-spacing: .5px;
+  }
+  .truckbed .cab { border-bottom: 2px dashed var(--line); padding-bottom: 5px; }
+  .truckbed .tail { border-top: 2px dashed var(--line); padding-top: 5px; }
+  .bed-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px; }
+  .bed-grid.single { grid-template-columns: 1fr; }
+  .slot {
+    border: 1.5px dashed var(--line); border-radius: 8px; padding: 6px 9px; background: var(--surface-2);
+  }
+  .slot.filled { border-style: solid; border-color: var(--accent); background: var(--accent-soft); }
+  .slot .snum {
+    font-size: 11px; font-weight: 800; color: var(--muted);
+    display: flex; justify-content: space-between; margin-bottom: 2px;
+  }
+  .slot.filled .snum { color: var(--accent); }
+  .slot input {
+    width: 100%; border: none; background: transparent; color: var(--ink);
+    border-bottom: 1px solid var(--line); border-radius: 0; padding: 3px 2px; font-size: 13px;
+    font-family: inherit;
+  }
+  .slot input:focus { outline: none; border-bottom: 2px solid var(--accent); }
+  .cargo-box { flex: 1; min-width: 280px; display: flex; flex-direction: column; }
+  .cargo-box textarea { min-height: 130px; flex: 1; font-size: 14px; }
+  .cargo-box label { font-size: 13px; font-weight: 800; color: var(--warn); }
+
   /* ---------- Chips & badges ---------- */
   .chip {
     display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px;
@@ -253,6 +286,18 @@
   .sheet .table-wrap { border-radius: 6px; }
   .sheet .totals-row td { font-weight: 800; background: var(--accent-soft); }
   .sheet .prose { font-size: 13.5px; white-space: pre-wrap; }
+  .sheet .plan-veh { margin-bottom: 16px; break-inside: avoid; }
+  .sheet .plan-veh > b { font-size: 14px; }
+  .sheet .plan-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 5px; font-size: 12.5px; margin-top: 6px; }
+  .sheet .plan-grid.single { grid-template-columns: 1fr; max-width: 340px; }
+  @media (max-width: 560px) { .sheet .plan-grid { grid-template-columns: 1fr; } }
+  .sheet .plan-cell { border: 1px solid var(--line); border-radius: 5px; padding: 4px 9px; }
+  .sheet .plan-cell b { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .sheet .plan-cell.empty { color: var(--muted); border-style: dashed; }
+  .sheet .plan-cargo {
+    margin: 6px 0 0; font-size: 13.5px; white-space: pre-wrap;
+    border: 1.5px solid var(--warn); border-radius: 6px; padding: 7px 11px; background: var(--warn-soft);
+  }
   .sheet ul.report-checks { columns: 2; margin: 4px 0; padding-inline-start: 20px; font-size: 13.5px; }
   @media (max-width: 640px) { .sheet ul.report-checks { columns: 1; } }
   .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 38px; }
@@ -393,14 +438,14 @@
               <th>נוסעים (כולל נהג)</th>
               <th>דולבים</th>
               <th>סולר (ל')</th>
-              <th>מטען / הערות</th>
+              <th>העמסה ופריטים</th>
               <th></th>
             </tr>
           </thead>
           <tbody id="convoyBody"></tbody>
         </table>
       </div>
-      <p class="lead" style="margin-top:8px">רכב ראשון בטבלה = ראש השיירה. סדרו עם החיצים ▲▼. חריגת העמסה תסומן באדום.</p>
+      <p class="lead" style="margin-top:8px">רכב ראשון בטבלה = ראש השיירה. סדרו עם החיצים ▲▼. לחצו "תכנון העמסה" כדי למלא לכל דולב של מי הוא ומה בפנים, לפי סדר ההעמסה בארגז — ולרשום פריטים שנמצאים על הרכב מחוץ לדולבים.</p>
     </div>
 
     <div class="card">
@@ -676,10 +721,49 @@
 
   function addVehicleToConvoy(fid) {
     var v = fleetById(fid); if (!v) return;
+    var slots = [];
+    for (var k = 0; k < (v.dolevCap || 0); k++) slots.push({ owner: '', content: '' });
     state.mission.vehicles.push({
       fleetId: fid, driver: '', vcommander: '', personnel: 1,
-      dolev: 0, fuel: 0, cargo: ''
+      fuel: 0, cargo: '', slots: slots, open: false
     });
+  }
+
+  function ensureSlots(mv, v) {
+    if (!mv.slots) mv.slots = [];
+    var cap = v ? (v.dolevCap || 0) : 0;
+    while (mv.slots.length < cap) mv.slots.push({ owner: '', content: '' });
+    if (mv.slots.length > cap) mv.slots.length = cap;
+  }
+
+  function dolevCount(mv) {
+    return (mv.slots || []).filter(function (s) { return s.owner || s.content; }).length;
+  }
+
+  function loadPlanHTML(mv, v) {
+    ensureSlots(mv, v);
+    var bed = '';
+    if ((v.dolevCap || 0) > 0) {
+      var cells = mv.slots.map(function (s, si) {
+        var filled = s.owner || s.content;
+        var side = v.dolevCap > 1 ? (si % 2 === 0 ? 'טור ימין' : 'טור שמאל') : '';
+        return '<div class="slot' + (filled ? ' filled' : '') + '">' +
+          '<div class="snum"><span>דולב ' + (si + 1) + '</span><span>' + side + '</span></div>' +
+          '<input data-slot="' + si + '" data-sf="owner" value="' + esc(s.owner) + '" placeholder="של מי הדולב (פלוגה / מחלקה)">' +
+          '<input data-slot="' + si + '" data-sf="content" value="' + esc(s.content) + '" placeholder="מה נכנס בפנים">' +
+          '</div>';
+      }).join('');
+      bed = '<div class="truckbed">' +
+        '<div class="cab">⬆ קדמת הרכב (קבינה) — דולב 1 נטען ראשון, עמוק בארגז</div>' +
+        '<div class="bed-grid' + (v.dolevCap === 1 ? ' single' : '') + '">' + cells + '</div>' +
+        '<div class="tail">דלת אחורית — כיוון ההעמסה ⬇</div>' +
+        '</div>';
+    }
+    return '<div class="load-flex">' + bed +
+      '<div class="field cargo-box">' +
+      '<label>פריטים שלא בדולב ונמצאים על הרכב</label>' +
+      '<textarea data-f="cargo" placeholder="כל פריט שמועמס על הרכב מחוץ לדולבים — ציוד קשר, ג\'ריקנים, שקי ציוד, מטען חריג...&#10;שורה לכל פריט">' + esc(mv.cargo || '') + '</textarea>' +
+      '</div></div>';
   }
 
   $('#addToConvoy').addEventListener('click', function () {
@@ -707,10 +791,11 @@
     }
     tb.innerHTML = state.mission.vehicles.map(function (mv, i) {
       var v = fleetById(mv.fleetId) || { type: '(רכב נמחק)', tz: '', dolevCap: 0, tanker: false };
-      var over = v.dolevCap > 0 && mv.dolev > v.dolevCap;
+      ensureSlots(mv, v);
+      var cnt = dolevCount(mv);
       var roleChip = i === 0 ? '<span class="chip neutral">ראש שיירה</span>' :
                      (i === state.mission.vehicles.length - 1 ? '<span class="chip neutral">מאסף</span>' : '');
-      return '<tr data-i="' + i + '">' +
+      var mainRow = '<tr data-i="' + i + '">' +
         '<td style="white-space:nowrap"><b class="cellnum">' + (i + 1) + '</b> ' +
           '<button class="btn icon" data-act="up" title="הזז למעלה"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
           '<button class="btn icon" data-act="down" title="הזז למטה"' + (i === state.mission.vehicles.length - 1 ? ' disabled' : '') + '>▼</button></td>' +
@@ -719,31 +804,56 @@
         '<td><input data-f="driver" value="' + esc(mv.driver) + '" placeholder="שם הנהג" style="min-width:110px"></td>' +
         '<td><input data-f="vcommander" value="' + esc(mv.vcommander) + '" placeholder="מפקד הרכב" style="min-width:110px"></td>' +
         '<td><input data-f="personnel" type="number" min="1" class="narrow" value="' + esc(mv.personnel) + '"></td>' +
-        '<td>' + (v.dolevCap > 0
-            ? '<input data-f="dolev" type="number" min="0" class="narrow' + (over ? ' invalid' : '') + '" value="' + esc(mv.dolev) + '"> <span style="color:var(--muted);font-size:12px">/ ' + v.dolevCap + '</span>'
+        '<td style="white-space:nowrap">' + (v.dolevCap > 0
+            ? '<span class="chip neutral dolev-count">' + cnt + ' / ' + v.dolevCap + '</span>'
             : '<span style="color:var(--muted)">—</span>') + '</td>' +
         '<td>' + (v.tanker
             ? '<input data-f="fuel" type="number" min="0" step="50" class="narrow" value="' + esc(mv.fuel) + '">'
             : '<span style="color:var(--muted)">—</span>') + '</td>' +
-        '<td><input data-f="cargo" value="' + esc(mv.cargo) + '" placeholder="פריטים שלא בדולב, מטען מיוחד..." style="min-width:170px"></td>' +
+        '<td style="white-space:nowrap">' +
+          '<button class="btn small' + (mv.open ? ' primary' : '') + '" data-act="plan">' + (mv.open ? '▴ סגור תכנון' : '▾ תכנון העמסה') + '</button>' +
+          (mv.cargo ? ' <span class="chip warn" title="נרשמו פריטים שלא בדולב">פריטים ברכב</span>' : '') + '</td>' +
         '<td><button class="btn icon danger" data-act="rm" title="הסר מהשיירה">✕</button></td>' +
         '</tr>';
+      var detailRow = mv.open
+        ? '<tr class="load-row" data-i="' + i + '"><td colspan="9">' + loadPlanHTML(mv, v) + '</td></tr>'
+        : '';
+      return mainRow + detailRow;
     }).join('');
   }
 
   $('#convoyBody').addEventListener('input', function (e) {
     var tr = e.target.closest('tr'); if (!tr || tr.dataset.i == null) return;
     var mv = state.mission.vehicles[+tr.dataset.i]; if (!mv) return;
+    var v = fleetById(mv.fleetId);
+    if (e.target.dataset.slot != null) {
+      ensureSlots(mv, v);
+      var si = +e.target.dataset.slot;
+      if (!mv.slots[si]) return;
+      mv.slots[si][e.target.dataset.sf] = e.target.value;
+      var slotEl = e.target.closest('.slot');
+      var filled = mv.slots[si].owner || mv.slots[si].content;
+      if (slotEl) slotEl.classList.toggle('filled', !!filled);
+      var mainRow = $('#convoyBody tr[data-i="' + tr.dataset.i + '"]:not(.load-row)');
+      var chip = mainRow && mainRow.querySelector('.dolev-count');
+      if (chip && v) chip.textContent = dolevCount(mv) + ' / ' + v.dolevCap;
+      updateSummary(); save();
+      return;
+    }
     var f = e.target.dataset.f;
-    if (f === 'personnel' || f === 'dolev' || f === 'fuel') {
+    if (f === 'personnel' || f === 'fuel') {
       mv[f] = Math.max(0, parseInt(e.target.value, 10) || 0);
-      if (f === 'dolev') {
-        var v = fleetById(mv.fleetId);
-        var over = v && v.dolevCap > 0 && mv.dolev > v.dolevCap;
-        e.target.classList.toggle('invalid', !!over);
-      }
-    } else {
+    } else if (f) {
       mv[f] = e.target.value;
+      if (f === 'cargo') {
+        var mr = $('#convoyBody tr[data-i="' + tr.dataset.i + '"]:not(.load-row)');
+        var chipW = mr && mr.querySelector('.chip.warn');
+        if (mv.cargo && !chipW && mr) {
+          mr.querySelector('[data-act="plan"]').insertAdjacentHTML('afterend', ' <span class="chip warn" title="נרשמו פריטים שלא בדולב">פריטים ברכב</span>');
+        } else if (!mv.cargo && chipW) {
+          chipW.remove();
+        }
+      }
     }
     updateSummary(); save();
   });
@@ -754,6 +864,7 @@
     var i = +tr.dataset.i;
     var arr = state.mission.vehicles;
     var act = btn.dataset.act;
+    if (act === 'plan') { arr[i].open = !arr[i].open; renderConvoy(); save(); return; }
     if (act === 'rm') arr.splice(i, 1);
     if (act === 'up' && i > 0) { var t = arr[i - 1]; arr[i - 1] = arr[i]; arr[i] = t; }
     if (act === 'down' && i < arr.length - 1) { var t2 = arr[i + 1]; arr[i + 1] = arr[i]; arr[i] = t2; }
@@ -767,10 +878,9 @@
       var v = fleetById(mv.fleetId); if (!v) return;
       t.vehicles++;
       t.personnel += mv.personnel || 0;
-      t.dolev += mv.dolev || 0;
+      t.dolev += dolevCount(mv);
       t.dolevCap += v.dolevCap || 0;
       if (v.tanker) t.fuel += mv.fuel || 0;
-      if (v.dolevCap > 0 && mv.dolev > v.dolevCap) t.over = true;
       if (v.active === false) t.inactive++;
     });
     return t;
@@ -830,8 +940,12 @@
       var v = fleetById(mv.fleetId); if (!v) return;
       var name = v.type + ' צ\'-' + v.tz;
       if (!mv.driver) issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): לא מולא שם נהג' });
-      if (v.dolevCap > 0 && mv.dolev > v.dolevCap)
-        issues.push({ level: 'crit', text: 'רכב ' + (i + 1) + ' (' + name + '): חריגת העמסה — ' + mv.dolev + ' דולבים מתוך קיבולת ' + v.dolevCap });
+      (mv.slots || []).forEach(function (s, si) {
+        if (s.content && !s.owner)
+          issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): דולב ' + (si + 1) + ' — לא צוין של מי הדולב' });
+        if (s.owner && !s.content)
+          issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): דולב ' + (si + 1) + ' — לא צוין מה נכנס בפנים' });
+      });
       if (v.active === false) issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): מסומן כמושבת בצי' });
       if (v.tanker && !mv.fuel) issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): לא צוינה כמות סולר' });
     });
@@ -856,6 +970,8 @@
     var rows = m.vehicles.map(function (mv, i) {
       var v = fleetById(mv.fleetId) || { type: '(רכב נמחק)', tz: '', dolevCap: 0, tanker: false };
       var role = i === 0 ? ' (ראש שיירה)' : (i === m.vehicles.length - 1 && m.vehicles.length > 1 ? ' (מאסף)' : '');
+      var cargoShort = (mv.cargo || '').replace(/\s+/g, ' ').trim();
+      if (cargoShort.length > 60) cargoShort = cargoShort.slice(0, 60) + '…';
       return '<tr>' +
         '<td class="cellnum">' + (i + 1) + '</td>' +
         '<td><b>' + esc(v.type) + '</b>' + role + '</td>' +
@@ -863,10 +979,38 @@
         '<td>' + (esc(mv.driver) || '—') + '</td>' +
         '<td>' + (esc(mv.vcommander) || '—') + '</td>' +
         '<td class="cellnum">' + (mv.personnel || 0) + '</td>' +
-        '<td class="cellnum">' + (v.dolevCap > 0 ? (mv.dolev || 0) + ' / ' + v.dolevCap : '—') + '</td>' +
+        '<td class="cellnum">' + (v.dolevCap > 0 ? dolevCount(mv) + ' / ' + v.dolevCap : '—') + '</td>' +
         '<td class="cellnum">' + (v.tanker ? (mv.fuel || 0).toLocaleString() : '—') + '</td>' +
-        '<td>' + esc(mv.cargo || v.notes || '') + '</td>' +
+        '<td>' + (cargoShort ? esc(cargoShort) + ' (פירוט בסעיף 3)' : esc(v.notes || '')) + '</td>' +
         '</tr>';
+    }).join('');
+
+    var planSec = m.vehicles.map(function (mv, i) {
+      var v = fleetById(mv.fleetId); if (!v) return '';
+      ensureSlots(mv, v);
+      var cnt = dolevCount(mv);
+      if (!cnt && !mv.cargo) return '';
+      var grid = '';
+      if (v.dolevCap > 0 && cnt) {
+        grid = '<div class="plan-grid' + (v.dolevCap === 1 ? ' single' : '') + '">' +
+          mv.slots.map(function (s, si) {
+            var filled = s.owner || s.content;
+            var side = v.dolevCap > 1 ? (si % 2 === 0 ? ' · ימין' : ' · שמאל') : '';
+            return '<div class="plan-cell' + (filled ? '' : ' empty') + '">' +
+              '<b>דולב ' + (si + 1) + side + '</b> — ' +
+              (filled
+                ? esc(s.owner || 'ללא שיוך') + ': ' + esc(s.content || 'לא פורט')
+                : 'פנוי') +
+              '</div>';
+          }).join('') + '</div>' +
+          '<div style="font-size:11.5px;color:var(--muted);margin-top:3px">סדר העמסה: דולב 1 נטען ראשון (צמוד לקבינה), שני טורים — ימין ושמאל, מספור מהקדמה לאחור.</div>';
+      }
+      return '<div class="plan-veh">' +
+        '<b>' + (i + 1) + '. ' + esc(v.type) + ' · צ\'-' + esc(v.tz) + '</b>' +
+        (v.dolevCap > 0 ? ' <span style="color:var(--muted)">(' + cnt + ' / ' + v.dolevCap + ' דולבים)</span>' : '') +
+        grid +
+        (mv.cargo ? '<div class="plan-cargo"><b>פריטים שלא בדולב — נמצאים על הרכב:</b>\n' + esc(mv.cargo) + '</div>' : '') +
+        '</div>';
     }).join('');
 
     var checksDone = m.checklist.filter(function (c) { return c.done; });
@@ -905,7 +1049,10 @@
         '</tbody></table></div>'
         : '<div class="empty-note">לא שובצו רכבים</div>') +
 
-      '<h4><span class="secnum">3.</span> וידוא מוכנות</h4>' +
+      '<h4><span class="secnum">3.</span> תוכנית העמסה — דולבים ופריטים</h4>' +
+      (planSec || '<div class="empty-note">לא מולאה תוכנית העמסה</div>') +
+
+      '<h4><span class="secnum">4.</span> וידוא מוכנות</h4>' +
       (m.checklist.length ?
         ('<ul class="report-checks">' +
           checksDone.map(function (c) { return '<li>☑ ' + esc(c.text) + '</li>'; }).join('') +
@@ -913,7 +1060,7 @@
         '</ul>')
         : '<div class="empty-note">אין פריטי וידוא</div>') +
 
-      '<h4><span class="secnum">4.</span> נהלי חירום ובטיחות</h4>' +
+      '<h4><span class="secnum">5.</span> נהלי חירום ובטיחות</h4>' +
       '<p class="prose">' + esc(m.emergency || '—') + '</p>' +
 
       '<div class="sigs">' +
