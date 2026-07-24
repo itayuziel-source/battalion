@@ -411,6 +411,8 @@
       </div>
       <div class="toolbar" style="margin-top:12px">
         <button class="btn primary" id="addVehicle">+ הוסף רכב</button>
+        <button class="btn" id="copyBackupBtn">📤 העתקת נתונים (להעברה למכשיר אחר)</button>
+        <button class="btn" id="pasteImportBtn">📥 ייבוא מהדבקה</button>
         <button class="btn" id="exportJson">ייצוא גיבוי (JSON)</button>
         <button class="btn" id="importJsonBtn">ייבוא גיבוי</button>
         <input type="file" id="importJson" accept="application/json" style="display:none">
@@ -686,6 +688,50 @@
     toast('הגיבוי הורד');
   });
   $('#importJsonBtn').addEventListener('click', function () { $('#importJson').click(); });
+
+  /* Cross-device transfer without files: copy the full state as text,
+     paste it in the other window/device. */
+  $('#copyBackupBtn').addEventListener('click', function () {
+    copyToClipboard(JSON.stringify(state),
+      'הנתונים הועתקו — פתחו את הכלי במכשיר השני ולחצו "ייבוא מהדבקה"');
+  });
+
+  function importFromText(raw) {
+    if (!raw) return false;
+    var start = raw.indexOf('{');
+    if (start === -1) return false;
+    var data;
+    try { data = JSON.parse(raw.slice(start)); } catch (e) { return false; }
+    if (data.kind === 'convoy-mission-pdf' && data.mission) {
+      // payload copied by the "PDF via Claude" button
+      state.unitName = data.unitName || state.unitName;
+      if (data.fleet && data.fleet.length) state.fleet = data.fleet;
+      state.mission = data.mission;
+    } else if (data.fleet && data.mission) {
+      // full backup
+      state = data;
+    } else return false;
+    initAll();
+    save();
+    return true;
+  }
+
+  $('#pasteImportBtn').addEventListener('click', function () {
+    var finish = function (raw) {
+      if (importFromText(raw)) toast('הנתונים נטענו בהצלחה');
+      else toast('לא זוהו נתונים תקינים בהדבקה');
+    };
+    if (navigator.clipboard && navigator.clipboard.readText) {
+      navigator.clipboard.readText().then(function (txt) {
+        if (txt && txt.indexOf('{') !== -1) finish(txt);
+        else finish(prompt('הדביקו כאן את הנתונים שהועתקו במכשיר השני:') || '');
+      }, function () {
+        finish(prompt('הדביקו כאן את הנתונים שהועתקו במכשיר השני:') || '');
+      });
+    } else {
+      finish(prompt('הדביקו כאן את הנתונים שהועתקו במכשיר השני:') || '');
+    }
+  });
   $('#importJson').addEventListener('change', function () {
     var f = this.files[0]; if (!f) return;
     var r = new FileReader();
