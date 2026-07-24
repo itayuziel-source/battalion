@@ -294,6 +294,7 @@
   .sheet .plan-cell { border: 1px solid var(--line); border-radius: 5px; padding: 4px 9px; }
   .sheet .plan-cell b { color: var(--accent); font-variant-numeric: tabular-nums; }
   .sheet .plan-cell.empty { color: var(--muted); border-style: dashed; }
+  .truck-sketch { display: block; width: min(100%, 380px); height: auto; margin: 10px auto 4px; }
   .sheet .plan-cargo {
     margin: 6px 0 0; font-size: 13.5px; white-space: pre-wrap;
     border: 1.5px solid var(--warn); border-radius: 6px; padding: 7px 11px; background: var(--warn-soft);
@@ -805,6 +806,78 @@
     return (mv.slots || []).filter(function (s) { return s.owner || s.content; }).length;
   }
 
+  function trm(s, n) {
+    s = String(s == null ? '' : s);
+    return s.length > n ? s.slice(0, n - 1) + '…' : s;
+  }
+
+  /* Top-view truck sketch (SVG): cab, travel-direction arrow, wheels,
+     numbered dolev slots in two columns, rear loading door. */
+  function truckSketchSVG(mv, v) {
+    var cap = v.dolevCap || 0;
+    if (!cap) return '';
+    ensureSlots(mv, v);
+    var cols = cap > 1 ? 2 : 1;
+    var rows = Math.ceil(cap / cols);
+    var cellW = cols === 2 ? 132 : 190, cellH = 56, gap = 8;
+    var bedW = cols * cellW + (cols + 1) * gap;
+    var W = bedW + 64;
+    var bedX = (W - bedW) / 2;
+    var arrowH = 24, cabH = 46, colLabelH = cols === 2 ? 18 : 6, tailH = 24;
+    var bedY = arrowH + cabH + 6;
+    var bedH = colLabelH + rows * cellH + (rows + 1) * gap;
+    var H = bedY + bedH + tailH + 6;
+    var cx = W / 2;
+    var s = [];
+    s.push('<svg class="truck-sketch" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ' + W + ' ' + H + '" role="img" aria-label="סקיצת העמסה — מבט מלמעלה">');
+    // direction of travel
+    s.push('<text x="' + cx + '" y="15" text-anchor="middle" font-size="13" font-weight="800" fill="#4A5A33" font-family="inherit">⬆ כיוון הנסיעה</text>');
+    // cab with windshield
+    s.push('<rect x="' + (bedX + 14) + '" y="' + arrowH + '" width="' + (bedW - 28) + '" height="' + cabH + '" rx="12" fill="#DCE2CE" stroke="#4A5A33" stroke-width="1.5"/>');
+    s.push('<rect x="' + (bedX + 30) + '" y="' + (arrowH + 5) + '" width="' + (bedW - 60) + '" height="7" rx="3" fill="#9FAF87"/>');
+    s.push('<text x="' + cx + '" y="' + (arrowH + 32) + '" text-anchor="middle" font-size="13" font-weight="700" fill="#3A4527" font-family="inherit">קבינה</text>');
+    // wheels: front axle + two rear axles
+    var wheelYs = bedH > 200
+      ? [arrowH + 8, bedY + bedH - 76, bedY + bedH - 40]
+      : [arrowH + 8, bedY + bedH - 38];
+    wheelYs.forEach(function (wy) {
+      s.push('<rect x="' + (bedX - 13) + '" y="' + wy + '" width="9" height="30" rx="3" fill="#3A3A34"/>');
+      s.push('<rect x="' + (bedX + bedW + 4) + '" y="' + wy + '" width="9" height="30" rx="3" fill="#3A3A34"/>');
+    });
+    // bed
+    s.push('<rect x="' + bedX + '" y="' + bedY + '" width="' + bedW + '" height="' + bedH + '" rx="7" fill="#FBFBF6" stroke="#66705A" stroke-width="1.5"/>');
+    // column labels (vehicle right = viewer right, nose up)
+    var colXright = bedX + bedW - gap - cellW;
+    var colXleft = bedX + gap;
+    if (cols === 2) {
+      s.push('<text x="' + (colXright + cellW / 2) + '" y="' + (bedY + 14) + '" text-anchor="middle" font-size="11" font-weight="700" fill="#6C7261" font-family="inherit">טור ימין</text>');
+      s.push('<text x="' + (colXleft + cellW / 2) + '" y="' + (bedY + 14) + '" text-anchor="middle" font-size="11" font-weight="700" fill="#6C7261" font-family="inherit">טור שמאל</text>');
+    }
+    // slots
+    for (var si = 0; si < cap; si++) {
+      var slot = mv.slots[si] || { owner: '', content: '' };
+      var filled = slot.owner || slot.content;
+      var col = cols === 2 ? si % 2 : 0;
+      var row = cols === 2 ? Math.floor(si / 2) : si;
+      var x = cols === 2 ? (col === 0 ? colXright : colXleft) : colXleft;
+      var y = bedY + colLabelH + gap + row * (cellH + gap);
+      if (filled) {
+        s.push('<rect x="' + x + '" y="' + y + '" width="' + cellW + '" height="' + cellH + '" rx="5" fill="#E8ECDC" stroke="#4A5A33" stroke-width="1.5"/>');
+        s.push('<text x="' + (x + cellW / 2) + '" y="' + (y + 15) + '" text-anchor="middle" font-size="10.5" font-weight="800" fill="#4A5A33" font-family="inherit">דולב ' + (si + 1) + '</text>');
+        s.push('<text x="' + (x + cellW / 2) + '" y="' + (y + 31) + '" text-anchor="middle" font-size="12" font-weight="700" fill="#21251B" font-family="inherit">' + esc(trm(slot.owner, 18)) + '</text>');
+        s.push('<text x="' + (x + cellW / 2) + '" y="' + (y + 46) + '" text-anchor="middle" font-size="11" fill="#4A4A42" font-family="inherit">' + esc(trm(slot.content, 20)) + '</text>');
+      } else {
+        s.push('<rect x="' + x + '" y="' + y + '" width="' + cellW + '" height="' + cellH + '" rx="5" fill="none" stroke="#B5B5A8" stroke-width="1.2" stroke-dasharray="5 4"/>');
+        s.push('<text x="' + (x + cellW / 2) + '" y="' + (y + cellH / 2 + 4) + '" text-anchor="middle" font-size="11" font-weight="700" fill="#B0B0A2" font-family="inherit">' + (si + 1) + '</text>');
+      }
+    }
+    // rear door
+    s.push('<line x1="' + (bedX + 12) + '" y1="' + (bedY + bedH) + '" x2="' + (bedX + bedW - 12) + '" y2="' + (bedY + bedH) + '" stroke="#4A5A33" stroke-width="3" stroke-dasharray="9 5"/>');
+    s.push('<text x="' + cx + '" y="' + (bedY + bedH + 17) + '" text-anchor="middle" font-size="11" font-weight="600" fill="#6C7261" font-family="inherit">דלת אחורית — ההעמסה מכאן</text>');
+    s.push('</svg>');
+    return s.join('');
+  }
+
   function loadPlanHTML(mv, v) {
     ensureSlots(mv, v);
     var bed = '';
@@ -819,7 +892,7 @@
           '</div>';
       }).join('');
       bed = '<div class="truckbed">' +
-        '<div class="cab">⬆ קדמת הרכב (קבינה) — דולב 1 נטען ראשון, עמוק בארגז</div>' +
+        '<div class="cab">⬆ כיוון הנסיעה — קדמת הרכב (קבינה) · דולב 1 נטען ראשון</div>' +
         '<div class="bed-grid' + (v.dolevCap === 1 ? ' single' : '') + '">' + cells + '</div>' +
         '<div class="tail">דלת אחורית — כיוון ההעמסה ⬇</div>' +
         '</div>';
@@ -1048,16 +1121,7 @@
       var cnt = dolevCount(mv);
       if (!cnt && !mv.cargo) return '';
       var grid = '';
-      if (v.dolevCap > 0 && cnt) {
-        var cells = [];
-        mv.slots.forEach(function (s, si) {
-          if (!s.owner && !s.content) return;
-          var side = v.dolevCap > 1 ? (si % 2 === 0 ? ' · ימין' : ' · שמאל') : '';
-          var desc = [s.owner, s.content].filter(Boolean).map(esc).join(': ');
-          cells.push('<div class="plan-cell"><b>דולב ' + (si + 1) + side + '</b> — ' + desc + '</div>');
-        });
-        grid = '<div class="plan-grid' + (v.dolevCap === 1 ? ' single' : '') + '">' + cells.join('') + '</div>';
-      }
+      if (v.dolevCap > 0 && cnt) grid = truckSketchSVG(mv, v);
       return '<div class="plan-veh">' +
         '<b>' + (i + 1) + '. ' + esc(v.type) + ' · צ\'-' + esc(v.tz) + '</b>' +
         (v.dolevCap > 0 && cnt ? ' <span style="color:var(--muted)">(' + cnt + ' דולבים)</span>' : '') +
@@ -1162,6 +1226,7 @@
     '.plan-cell{border:1px solid #ccc;border-radius:5px;padding:4px 9px}' +
     '.plan-cell b{color:#4A5A33;font-variant-numeric:tabular-nums}' +
     '.plan-cargo{margin:6px 0 0;font-size:13.5px;white-space:pre-wrap;border:1.5px solid #a5680f;border-radius:6px;padding:7px 11px;background:#f6ecd9}' +
+    '.truck-sketch{display:block;width:min(100%,380px);height:auto;margin:10px auto 4px}' +
     '.prose{font-size:13.5px;white-space:pre-wrap}' +
     'ul.report-checks{columns:2;margin:4px 0;padding-inline-start:20px;font-size:13.5px}' +
     '.sigs{display:grid;grid-template-columns:1fr 1fr;gap:40px;margin-top:38px;break-inside:avoid}' +
