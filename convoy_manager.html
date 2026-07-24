@@ -1,0 +1,1005 @@
+<!doctype html>
+<html dir="rtl" lang="he">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>מערכת ניהול שיירות</title>
+</head>
+<body>
+<style>
+  :root {
+    --bg: #F2F1E9;
+    --surface: #FFFFFF;
+    --surface-2: #FAF9F3;
+    --ink: #21251B;
+    --muted: #6C7261;
+    --line: #D8D7C8;
+    --accent: #4A5A33;
+    --accent-ink: #FFFFFF;
+    --accent-soft: #E8ECDC;
+    --warn: #A66A10;
+    --warn-soft: #F6ECD9;
+    --crit: #A93226;
+    --crit-soft: #F5E0DD;
+    --ok: #3C7A46;
+    --ok-soft: #E0EDE2;
+    --fuel: #275E5B;
+    --fuel-soft: #DDEAE9;
+    --shadow: 0 1px 3px rgba(30,35,20,.08), 0 4px 14px rgba(30,35,20,.06);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #15180F;
+      --surface: #1F2417;
+      --surface-2: #262C1D;
+      --ink: #E9E9DE;
+      --muted: #A0A78F;
+      --line: #39412C;
+      --accent: #93A868;
+      --accent-ink: #15180F;
+      --accent-soft: #2B331E;
+      --warn: #D69A3C;
+      --warn-soft: #3A2F17;
+      --crit: #D96A5C;
+      --crit-soft: #3E211D;
+      --ok: #77B183;
+      --ok-soft: #1F3323;
+      --fuel: #6FADA9;
+      --fuel-soft: #1C3230;
+      --shadow: 0 1px 3px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #F2F1E9; --surface: #FFFFFF; --surface-2: #FAF9F3; --ink: #21251B;
+    --muted: #6C7261; --line: #D8D7C8; --accent: #4A5A33; --accent-ink: #FFFFFF;
+    --accent-soft: #E8ECDC; --warn: #A66A10; --warn-soft: #F6ECD9; --crit: #A93226;
+    --crit-soft: #F5E0DD; --ok: #3C7A46; --ok-soft: #E0EDE2; --fuel: #275E5B; --fuel-soft: #DDEAE9;
+    --shadow: 0 1px 3px rgba(30,35,20,.08), 0 4px 14px rgba(30,35,20,.06);
+  }
+  :root[data-theme="dark"] {
+    --bg: #15180F; --surface: #1F2417; --surface-2: #262C1D; --ink: #E9E9DE;
+    --muted: #A0A78F; --line: #39412C; --accent: #93A868; --accent-ink: #15180F;
+    --accent-soft: #2B331E; --warn: #D69A3C; --warn-soft: #3A2F17; --crit: #D96A5C;
+    --crit-soft: #3E211D; --ok: #77B183; --ok-soft: #1F3323; --fuel: #6FADA9; --fuel-soft: #1C3230;
+    --shadow: 0 1px 3px rgba(0,0,0,.4), 0 4px 14px rgba(0,0,0,.3);
+  }
+
+  * { box-sizing: border-box; }
+  html, body { direction: rtl; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", "Heebo", "Assistant", Arial, "Noto Sans Hebrew", sans-serif;
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  .app { max-width: 1080px; margin: 0 auto; padding: 0 16px 80px; }
+
+  /* ---------- Header ---------- */
+  .masthead {
+    display: flex; align-items: center; justify-content: space-between; gap: 16px;
+    padding: 20px 4px 14px; border-bottom: 3px solid var(--accent); margin-bottom: 14px;
+    flex-wrap: wrap;
+  }
+  .masthead h1 { margin: 0; font-size: 24px; font-weight: 800; letter-spacing: -.3px; }
+  .masthead .sub { color: var(--muted); font-size: 13px; margin-top: 2px; }
+  .unit-input {
+    border: 1px dashed var(--line); background: var(--surface-2); color: var(--ink);
+    padding: 7px 12px; border-radius: 6px; font-size: 14px; min-width: 210px; font-family: inherit;
+  }
+  .unit-input:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+  /* ---------- Tabs ---------- */
+  .tabs { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 18px; }
+  .tab-btn {
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    padding: 9px 18px; border-radius: 8px; cursor: pointer; font-size: 15px; font-weight: 600;
+    font-family: inherit; display: inline-flex; align-items: center; gap: 8px;
+  }
+  .tab-btn:hover { border-color: var(--accent); }
+  .tab-btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .tab-btn.active { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .tab-btn .num {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 21px; height: 21px; border-radius: 50%; font-size: 12px; font-weight: 800;
+    background: var(--accent-soft); color: var(--accent);
+  }
+  .tab-btn.active .num { background: var(--accent-ink); color: var(--accent); }
+
+  .pane { display: none; }
+  .pane.active { display: block; }
+
+  /* ---------- Cards / sections ---------- */
+  .card {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: var(--shadow); padding: 18px 20px; margin-bottom: 16px;
+  }
+  .card h2 {
+    margin: 0 0 4px; font-size: 17px; font-weight: 800;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .card h2 .hint { font-size: 12.5px; color: var(--muted); font-weight: 400; }
+  .card > p.lead { margin: 0 0 14px; color: var(--muted); font-size: 13.5px; }
+
+  /* ---------- Forms ---------- */
+  .grid { display: grid; gap: 12px; }
+  .grid.cols-2 { grid-template-columns: repeat(2, 1fr); }
+  .grid.cols-3 { grid-template-columns: repeat(3, 1fr); }
+  .grid.cols-4 { grid-template-columns: repeat(4, 1fr); }
+  @media (max-width: 720px) {
+    .grid.cols-3, .grid.cols-4 { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (max-width: 480px) {
+    .grid.cols-2, .grid.cols-3, .grid.cols-4 { grid-template-columns: 1fr; }
+  }
+  .field { display: flex; flex-direction: column; gap: 4px; }
+  .field label { font-size: 12.5px; font-weight: 700; color: var(--muted); letter-spacing: .2px; }
+  .field label .req { color: var(--crit); }
+  .field input, .field select, .field textarea {
+    border: 1px solid var(--line); background: var(--surface-2); color: var(--ink);
+    border-radius: 7px; padding: 8px 10px; font-size: 14.5px; font-family: inherit; width: 100%;
+  }
+  .field textarea { resize: vertical; min-height: 64px; }
+  .field input:focus, .field select:focus, .field textarea:focus {
+    outline: 2px solid var(--accent); border-color: transparent;
+  }
+  input[type="number"] { font-variant-numeric: tabular-nums; }
+
+  /* ---------- Buttons ---------- */
+  .btn {
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    padding: 8px 16px; border-radius: 7px; cursor: pointer; font-size: 14px; font-weight: 600;
+    font-family: inherit; display: inline-flex; align-items: center; gap: 7px;
+  }
+  .btn:hover { border-color: var(--accent); }
+  .btn:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+  .btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+  .btn.primary:hover { filter: brightness(1.08); }
+  .btn.danger { color: var(--crit); border-color: var(--crit); background: transparent; }
+  .btn.small { padding: 4px 10px; font-size: 13px; }
+  .btn.icon { padding: 4px 9px; font-size: 14px; line-height: 1; }
+  .btn:disabled { opacity: .45; cursor: not-allowed; }
+  .toolbar { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+
+  /* ---------- Tables ---------- */
+  .table-wrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 8px; }
+  table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+  thead th {
+    background: var(--accent-soft); color: var(--ink); text-align: right;
+    padding: 9px 10px; font-size: 12.5px; font-weight: 800; letter-spacing: .2px;
+    border-bottom: 2px solid var(--accent); white-space: nowrap;
+  }
+  tbody td { padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:nth-child(even) { background: var(--surface-2); }
+  td input, td select {
+    border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+    border-radius: 6px; padding: 5px 8px; font-size: 13.5px; font-family: inherit; width: 100%;
+  }
+  td input:focus, td select:focus { outline: 2px solid var(--accent); border-color: transparent; }
+  td input.narrow { width: 74px; text-align: center; font-variant-numeric: tabular-nums; }
+  td input.invalid { border-color: var(--crit); background: var(--crit-soft); }
+  td .cellnum { font-variant-numeric: tabular-nums; }
+
+  /* ---------- Chips & badges ---------- */
+  .chip {
+    display: inline-flex; align-items: center; gap: 5px; padding: 2px 10px;
+    border-radius: 999px; font-size: 12px; font-weight: 700; white-space: nowrap;
+  }
+  .chip.ok { background: var(--ok-soft); color: var(--ok); }
+  .chip.warn { background: var(--warn-soft); color: var(--warn); }
+  .chip.crit { background: var(--crit-soft); color: var(--crit); }
+  .chip.fuel { background: var(--fuel-soft); color: var(--fuel); }
+  .chip.neutral { background: var(--accent-soft); color: var(--accent); }
+
+  /* ---------- Summary bar ---------- */
+  .summary {
+    display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px;
+    margin-bottom: 16px;
+  }
+  .stat {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    padding: 10px 14px; box-shadow: var(--shadow);
+  }
+  .stat .label { font-size: 12px; color: var(--muted); font-weight: 700; }
+  .stat .value { font-size: 22px; font-weight: 800; font-variant-numeric: tabular-nums; line-height: 1.25; }
+  .stat .value small { font-size: 13px; color: var(--muted); font-weight: 600; }
+  .stat.alert { border-color: var(--crit); }
+  .stat.alert .value { color: var(--crit); }
+
+  /* ---------- Checklist ---------- */
+  .checklist { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 18px; }
+  @media (max-width: 640px) { .checklist { grid-template-columns: 1fr; } }
+  .check-item {
+    display: flex; align-items: center; gap: 9px; padding: 6px 8px; border-radius: 7px;
+  }
+  .check-item:hover { background: var(--surface-2); }
+  .check-item input[type="checkbox"] { width: 17px; height: 17px; accent-color: var(--accent); flex-shrink: 0; }
+  .check-item label { cursor: pointer; font-size: 14px; }
+  .check-item .rm { margin-inline-start: auto; }
+
+  /* ---------- Report ---------- */
+  .report-actions { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  .issues { margin: 0 0 14px; }
+  .issue {
+    padding: 8px 14px; border-radius: 8px; font-size: 13.5px; font-weight: 600; margin-bottom: 6px;
+    border: 1px solid transparent;
+  }
+  .issue.crit { background: var(--crit-soft); color: var(--crit); border-color: var(--crit); }
+  .issue.warn { background: var(--warn-soft); color: var(--warn); border-color: var(--warn); }
+
+  .sheet {
+    background: var(--surface); border: 1px solid var(--line); border-radius: 10px;
+    box-shadow: var(--shadow); padding: 30px 34px; max-width: 900px; margin: 0 auto;
+  }
+  .sheet .doc-head {
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 14px;
+    border-bottom: 3px double var(--ink); padding-bottom: 12px; margin-bottom: 16px;
+  }
+  .sheet .doc-head .cls { font-size: 12px; font-weight: 800; color: var(--crit); letter-spacing: 1px; }
+  .sheet h3.doc-title { margin: 2px 0 0; font-size: 22px; font-weight: 800; }
+  .sheet .doc-meta { font-size: 13px; color: var(--muted); text-align: left; white-space: nowrap; }
+  .sheet h4 {
+    margin: 20px 0 8px; font-size: 14px; font-weight: 800; letter-spacing: .4px;
+    border-bottom: 1.5px solid var(--accent); padding-bottom: 3px;
+    display: flex; align-items: baseline; gap: 8px;
+  }
+  .sheet h4 .secnum { color: var(--accent); font-variant-numeric: tabular-nums; }
+  .kv { display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 6px 24px; font-size: 14px; }
+  .kv div b { color: var(--muted); font-size: 12.5px; display: block; }
+  .sheet table { min-width: 0; font-size: 13px; }
+  .sheet .table-wrap { border-radius: 6px; }
+  .sheet .totals-row td { font-weight: 800; background: var(--accent-soft); }
+  .sheet .prose { font-size: 13.5px; white-space: pre-wrap; }
+  .sheet ul.report-checks { columns: 2; margin: 4px 0; padding-inline-start: 20px; font-size: 13.5px; }
+  @media (max-width: 640px) { .sheet ul.report-checks { columns: 1; } }
+  .sigs { display: grid; grid-template-columns: 1fr 1fr; gap: 40px; margin-top: 38px; }
+  @media (max-width: 520px) { .sigs { grid-template-columns: 1fr; gap: 26px; } }
+  .sig { text-align: center; font-size: 13px; }
+  .sig .line { border-bottom: 1.5px solid var(--ink); height: 40px; margin-bottom: 6px; }
+  .sig b { display: block; }
+  .sig span { color: var(--muted); font-size: 12px; }
+  .empty-note { color: var(--muted); font-size: 14px; padding: 14px; text-align: center; }
+
+  /* ---------- Archive ---------- */
+  .arch-item {
+    display: flex; align-items: center; gap: 12px; padding: 11px 14px;
+    border: 1px solid var(--line); border-radius: 8px; margin-bottom: 8px; background: var(--surface);
+    flex-wrap: wrap;
+  }
+  .arch-item .t { font-weight: 700; }
+  .arch-item .d { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
+  .arch-item .sp { margin-inline-start: auto; display: flex; gap: 6px; }
+
+  /* ---------- Toast ---------- */
+  #toast {
+    position: fixed; bottom: 22px; right: 50%; transform: translateX(50%);
+    background: var(--ink); color: var(--bg); padding: 10px 22px; border-radius: 8px;
+    font-size: 14px; font-weight: 600; opacity: 0; pointer-events: none;
+    transition: opacity .25s; z-index: 50; box-shadow: var(--shadow);
+  }
+  #toast.show { opacity: 1; }
+  @media (prefers-reduced-motion: reduce) { #toast { transition: none; } }
+
+  /* ---------- Print ---------- */
+  @media print {
+    :root, :root[data-theme="dark"] {
+      --bg: #FFF; --surface: #FFF; --surface-2: #FFF; --ink: #000; --muted: #444;
+      --line: #999; --accent: #333; --accent-soft: #EEE; --accent-ink: #FFF;
+      --crit: #000; --crit-soft: #FFF; --warn: #000; --warn-soft: #FFF;
+      --ok: #000; --ok-soft: #FFF; --fuel: #000; --fuel-soft: #FFF; --shadow: none;
+    }
+    body { background: #FFF; font-size: 12px; }
+    .masthead, .tabs, .report-actions, .issues, #toast, .no-print { display: none !important; }
+    .app { max-width: none; padding: 0; }
+    .pane { display: none !important; }
+    #pane-report { display: block !important; }
+    .sheet { border: none; box-shadow: none; padding: 0; max-width: none; }
+    .sheet .doc-head .cls { color: #000; }
+    thead th { background: #EEE !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .sheet .totals-row td { background: #EEE !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .table-wrap { overflow: visible; border-color: #999; }
+    tr { break-inside: avoid; }
+    .sigs { break-inside: avoid; }
+  }
+</style>
+
+<div class="app">
+  <header class="masthead">
+    <div>
+      <h1>מערכת ניהול שיירות</h1>
+      <div class="sub">ניהול צי · הכנת משימה · הפקת פקודת שיירה</div>
+    </div>
+    <input id="unitName" class="unit-input" type="text" placeholder="שם היחידה / הגדוד (יופיע בפקודה)">
+  </header>
+
+  <nav class="tabs" role="tablist">
+    <button class="tab-btn active" data-tab="fleet" role="tab"><span class="num">1</span> צי הרכבים</button>
+    <button class="tab-btn" data-tab="prep" role="tab"><span class="num">2</span> הכנת משימה</button>
+    <button class="tab-btn" data-tab="report" role="tab"><span class="num">3</span> פקודת שיירה</button>
+    <button class="tab-btn" data-tab="archive" role="tab"><span class="num">4</span> ארכיון</button>
+  </nav>
+
+  <!-- ============ FLEET ============ -->
+  <section class="pane active" id="pane-fleet">
+    <div class="card">
+      <h2>צי הרכבים <span class="hint">ניהול קבוע של כלל הרכבים ביחידה</span></h2>
+      <p class="lead">כאן מנהלים את רשימת הרכבים הקבועה: סוג, מספר צ', קיבולת דולבים, מיכלית סולר וכשירות. הרשימה נשמרת אוטומטית במכשיר.</p>
+      <div class="table-wrap">
+        <table id="fleetTable">
+          <thead>
+            <tr>
+              <th>סוג רכב</th>
+              <th>צ'</th>
+              <th>קיבולת דולבים</th>
+              <th>מיכלית סולר</th>
+              <th>קיבולת מיכל (ל')</th>
+              <th>כשירות</th>
+              <th>הערות</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="fleetBody"></tbody>
+        </table>
+      </div>
+      <div class="toolbar" style="margin-top:12px">
+        <button class="btn primary" id="addVehicle">+ הוסף רכב</button>
+        <button class="btn" id="exportJson">ייצוא גיבוי (JSON)</button>
+        <button class="btn" id="importJsonBtn">ייבוא גיבוי</button>
+        <input type="file" id="importJson" accept="application/json" style="display:none">
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ PREP ============ -->
+  <section class="pane" id="pane-prep">
+    <div class="summary" id="summaryBar"></div>
+
+    <div class="card">
+      <h2>פרטי המשימה</h2>
+      <div class="grid cols-3">
+        <div class="field"><label>כותרת המשימה <span class="req">*</span></label><input id="mTitle" type="text" placeholder='לדוגמה: שינוע תחמושת למוצב'></div>
+        <div class="field"><label>תאריך <span class="req">*</span></label><input id="mDate" type="date"></div>
+        <div class="field"><label>מפקד המשימה <span class="req">*</span></label><input id="mCommander" type="text" placeholder="דרגה + שם מלא"></div>
+        <div class="field"><label>שעת יציאה</label><input id="mDepart" type="time"></div>
+        <div class="field"><label>שעת חזרה משוערת</label><input id="mReturn" type="time"></div>
+        <div class="field"><label>ציר תנועה / מסלול</label><input id="mRoute" type="text" placeholder="נקודת יציאה ← יעד"></div>
+        <div class="field"><label>תדר קשר / ערוץ</label><input id="mFreq" type="text"></div>
+        <div class="field"><label>אות קריאה</label><input id="mCallsign" type="text"></div>
+        <div class="field"><label>מרווח נסיעה בין רכבים (מ')</label><input id="mGap" type="number" min="0" step="10" placeholder="50"></div>
+      </div>
+      <div class="grid cols-1" style="margin-top:12px">
+        <div class="field"><label>הערות כלליות למשימה</label><textarea id="mNotes" placeholder="נקודות עצירה, אילוצים, תיאומים..."></textarea></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>שיבוץ רכבים והעמסה <span class="hint">בחר רכבים מהצי, קבע סדר נסיעה ומלא שיבוץ</span></h2>
+      <div class="toolbar" style="margin-bottom:10px">
+        <select id="vehiclePicker"></select>
+        <button class="btn primary small" id="addToConvoy">הוסף לשיירה</button>
+        <button class="btn small" id="addAllActive">הוסף את כל הרכבים הכשירים</button>
+      </div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>סדר</th>
+              <th>רכב</th>
+              <th>נהג</th>
+              <th>מפקד רכב</th>
+              <th>נוסעים (כולל נהג)</th>
+              <th>דולבים</th>
+              <th>סולר (ל')</th>
+              <th>מטען / הערות</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="convoyBody"></tbody>
+        </table>
+      </div>
+      <p class="lead" style="margin-top:8px">רכב ראשון בטבלה = ראש השיירה. סדרו עם החיצים ▲▼. חריגת העמסה תסומן באדום.</p>
+    </div>
+
+    <div class="card">
+      <h2>וידוא מוכנות לפני יציאה <span class="hint">צ'ק־ליסט — מצבו נשמר ומופיע בפקודה</span></h2>
+      <div class="checklist" id="checklistBox"></div>
+      <div class="toolbar" style="margin-top:10px">
+        <input id="newCheckItem" type="text" placeholder="פריט בדיקה נוסף..." style="flex:1; min-width:180px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); border-radius:7px; padding:8px 10px; font-family:inherit; font-size:14px">
+        <button class="btn small" id="addCheckItem">+ הוסף</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>נהלי חירום ובטיחות <span class="hint">נכלל בפקודת השיירה — ערכו לפי הצורך</span></h2>
+      <div class="field"><textarea id="mEmergency" rows="6"></textarea></div>
+    </div>
+
+    <div class="toolbar">
+      <button class="btn primary" id="goReport">הפק פקודת שיירה ←</button>
+      <button class="btn" id="saveToArchive">שמור משימה לארכיון</button>
+      <button class="btn danger" id="clearMission">נקה משימה</button>
+    </div>
+  </section>
+
+  <!-- ============ REPORT ============ -->
+  <section class="pane" id="pane-report">
+    <div class="report-actions">
+      <button class="btn primary" id="printBtn">🖨 הדפסה / שמירה כ־PDF</button>
+      <button class="btn" id="backToPrep">→ חזרה לעריכה</button>
+      <button class="btn" id="saveToArchive2">שמור לארכיון</button>
+    </div>
+    <div class="issues" id="issuesBox"></div>
+    <div class="sheet" id="reportSheet"></div>
+  </section>
+
+  <!-- ============ ARCHIVE ============ -->
+  <section class="pane" id="pane-archive">
+    <div class="card">
+      <h2>ארכיון משימות <span class="hint">משימות שנשמרו במכשיר זה</span></h2>
+      <p class="lead">טעינת משימה מהארכיון תחליף את המשימה הנוכחית בלשונית ההכנה.</p>
+      <div id="archiveList"></div>
+    </div>
+  </section>
+</div>
+
+<div id="toast" role="status"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  var STORAGE_KEY = 'convoy-manager-v1';
+
+  var DEFAULT_CHECKLIST = [
+    'תדריך נהגים ומפקדי רכב',
+    'בדיקת קשר לכל הרכבים',
+    'בדיקה טכנית: דלק, שמן, מים, צמיגים',
+    'גלגל רזרבי ומגבה בכל רכב',
+    'כבל גרירה בשיירה',
+    'ערכת עזרה ראשונה',
+    'מים — לפחות 3 ליטר לאדם',
+    'אפוד וקסדה לכל נוסע',
+    'נשק ותחמושת לפי פקודה',
+    'עיגון וקשירת דולבים ומטען',
+    'אישור יציאה מהחמ"ל',
+    'תיאום ציר ונקודות עצירה'
+  ];
+
+  var DEFAULT_EMERGENCY =
+    'רכב מתקלקל: השיירה עוצרת בשול, אבטחה היקפית, דיווח מיידי למפקד השיירה ולחמ"ל.\n' +
+    'איבוד קשר עין: הרכב האחרון מדווח, השיירה מאיטה עד להתחברות מחדש.\n' +
+    'אר"ן / נפגעים: עצירה, טיפול ראשוני, דיווח וחילוץ לפי נוהל היחידה.\n' +
+    'עצירה יזומה רק בנקודות שאושרו מראש. אין עקיפות בתוך השיירה.';
+
+  function defaultFleet() {
+    return [
+      { id: id(), type: 'FMTV ארוכה', tz: '727491', dolevCap: 10, tanker: false, tankCap: 0, active: true, notes: '' },
+      { id: id(), type: 'FMTV ארוכה', tz: '727496', dolevCap: 10, tanker: false, tankCap: 0, active: true, notes: '' },
+      { id: id(), type: 'האמר מנהלה', tz: '705636', dolevCap: 1, tanker: false, tankCap: 0, active: true, notes: '' },
+      { id: id(), type: 'האמר מנהלה', tz: '705897', dolevCap: 1, tanker: false, tankCap: 0, active: true, notes: '' },
+      { id: id(), type: 'האמר מנהלה', tz: '706272', dolevCap: 1, tanker: false, tankCap: 0, active: true, notes: '' },
+      { id: id(), type: 'אושקוש סולר', tz: '708749', dolevCap: 0, tanker: true, tankCap: 0, active: true, notes: 'לציין כמות סולר בליטרים בכל משימה' }
+    ];
+  }
+
+  function emptyMission() {
+    return {
+      title: '', date: '', commander: '', depart: '', ret: '', route: '',
+      freq: '', callsign: '', gap: '', notes: '',
+      emergency: DEFAULT_EMERGENCY,
+      vehicles: [],
+      checklist: DEFAULT_CHECKLIST.map(function (t) { return { text: t, done: false }; })
+    };
+  }
+
+  var state = load() || {
+    unitName: '',
+    fleet: defaultFleet(),
+    mission: emptyMission(),
+    archive: []
+  };
+
+  function id() { return 'v' + Math.random().toString(36).slice(2, 9); }
+
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORAGE_KEY);
+      return raw ? JSON.parse(raw) : null;
+    } catch (e) { return null; }
+  }
+  var saveTimer = null;
+  function save() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(function () {
+      try { localStorage.setItem(STORAGE_KEY, JSON.stringify(state)); } catch (e) {}
+    }, 250);
+  }
+
+  function $(sel) { return document.querySelector(sel); }
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c];
+    });
+  }
+  function toast(msg) {
+    var t = $('#toast');
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(t._h);
+    t._h = setTimeout(function () { t.classList.remove('show'); }, 2200);
+  }
+  function fmtDate(iso) {
+    if (!iso) return '';
+    var p = iso.split('-');
+    return p.length === 3 ? p[2] + '.' + p[1] + '.' + p[0] : iso;
+  }
+
+  /* ---------------- Tabs ---------------- */
+  var tabs = document.querySelectorAll('.tab-btn');
+  function showTab(name) {
+    tabs.forEach(function (b) { b.classList.toggle('active', b.dataset.tab === name); });
+    document.querySelectorAll('.pane').forEach(function (p) {
+      p.classList.toggle('active', p.id === 'pane-' + name);
+    });
+    if (name === 'report') renderReport();
+    if (name === 'archive') renderArchive();
+    if (name === 'prep') { renderPicker(); updateSummary(); }
+  }
+  tabs.forEach(function (b) {
+    b.addEventListener('click', function () { showTab(b.dataset.tab); });
+  });
+
+  /* ---------------- Unit name ---------------- */
+  $('#unitName').value = state.unitName || '';
+  $('#unitName').addEventListener('input', function () {
+    state.unitName = this.value; save();
+  });
+
+  /* ---------------- Fleet ---------------- */
+  function renderFleet() {
+    var tb = $('#fleetBody');
+    tb.innerHTML = state.fleet.map(function (v) {
+      return '<tr data-id="' + v.id + '">' +
+        '<td><input data-f="type" value="' + esc(v.type) + '" placeholder="סוג רכב"></td>' +
+        '<td><input data-f="tz" value="' + esc(v.tz) + '" placeholder="מספר צ\'" style="width:100px"></td>' +
+        '<td><input data-f="dolevCap" type="number" min="0" class="narrow" value="' + esc(v.dolevCap) + '"></td>' +
+        '<td style="text-align:center"><input data-f="tanker" type="checkbox"' + (v.tanker ? ' checked' : '') + ' style="width:17px;height:17px;accent-color:var(--fuel)"></td>' +
+        '<td><input data-f="tankCap" type="number" min="0" step="100" class="narrow" value="' + esc(v.tankCap || 0) + '"' + (v.tanker ? '' : ' disabled') + '></td>' +
+        '<td><select data-f="active"><option value="1"' + (v.active ? ' selected' : '') + '>כשיר</option><option value="0"' + (!v.active ? ' selected' : '') + '>מושבת</option></select></td>' +
+        '<td><input data-f="notes" value="' + esc(v.notes) + '" placeholder="הערות"></td>' +
+        '<td><button class="btn icon danger" data-act="del" title="מחק רכב">✕</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  $('#fleetBody').addEventListener('input', function (e) {
+    var tr = e.target.closest('tr'); if (!tr) return;
+    var v = state.fleet.find(function (x) { return x.id === tr.dataset.id; });
+    if (!v) return;
+    var f = e.target.dataset.f;
+    if (f === 'tanker') {
+      v.tanker = e.target.checked;
+      tr.querySelector('[data-f="tankCap"]').disabled = !v.tanker;
+    } else if (f === 'active') {
+      v.active = e.target.value === '1';
+    } else if (f === 'dolevCap' || f === 'tankCap') {
+      v[f] = Math.max(0, parseInt(e.target.value, 10) || 0);
+    } else {
+      v[f] = e.target.value;
+    }
+    renderPicker(); updateSummary(); save();
+  });
+
+  $('#fleetBody').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-act="del"]'); if (!btn) return;
+    var tr = btn.closest('tr');
+    var v = state.fleet.find(function (x) { return x.id === tr.dataset.id; });
+    if (!confirm('למחוק את הרכב ' + (v ? v.type + ' צ\'-' + v.tz : '') + ' מהצי?')) return;
+    state.fleet = state.fleet.filter(function (x) { return x.id !== tr.dataset.id; });
+    state.mission.vehicles = state.mission.vehicles.filter(function (mv) { return mv.fleetId !== tr.dataset.id; });
+    renderFleet(); renderConvoy(); renderPicker(); updateSummary(); save();
+  });
+
+  $('#addVehicle').addEventListener('click', function () {
+    state.fleet.push({ id: id(), type: '', tz: '', dolevCap: 0, tanker: false, tankCap: 0, active: true, notes: '' });
+    renderFleet(); renderPicker(); save();
+    var rows = $('#fleetBody').querySelectorAll('tr');
+    var last = rows[rows.length - 1];
+    if (last) last.querySelector('input').focus();
+  });
+
+  /* ---------------- Backup ---------------- */
+  $('#exportJson').addEventListener('click', function () {
+    var blob = new Blob([JSON.stringify(state, null, 2)], { type: 'application/json' });
+    var a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'convoy-backup.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    toast('הגיבוי הורד');
+  });
+  $('#importJsonBtn').addEventListener('click', function () { $('#importJson').click(); });
+  $('#importJson').addEventListener('change', function () {
+    var f = this.files[0]; if (!f) return;
+    var r = new FileReader();
+    r.onload = function () {
+      try {
+        var data = JSON.parse(r.result);
+        if (!data.fleet || !data.mission) throw new Error('bad');
+        state = data;
+        initAll();
+        save();
+        toast('הגיבוי נטען בהצלחה');
+      } catch (e) { toast('קובץ גיבוי לא תקין'); }
+    };
+    r.readAsText(f);
+    this.value = '';
+  });
+
+  /* ---------------- Mission header fields ---------------- */
+  var missionFields = [
+    ['mTitle', 'title'], ['mDate', 'date'], ['mCommander', 'commander'],
+    ['mDepart', 'depart'], ['mReturn', 'ret'], ['mRoute', 'route'],
+    ['mFreq', 'freq'], ['mCallsign', 'callsign'], ['mGap', 'gap'],
+    ['mNotes', 'notes'], ['mEmergency', 'emergency']
+  ];
+  function bindMissionFields() {
+    missionFields.forEach(function (pair) {
+      var el = $('#' + pair[0]);
+      el.value = state.mission[pair[1]] || '';
+      el.oninput = function () { state.mission[pair[1]] = el.value; save(); };
+    });
+  }
+
+  /* ---------------- Convoy assignment ---------------- */
+  function fleetById(fid) {
+    return state.fleet.find(function (x) { return x.id === fid; });
+  }
+
+  function renderPicker() {
+    var used = {};
+    state.mission.vehicles.forEach(function (mv) { used[mv.fleetId] = true; });
+    var opts = state.fleet
+      .filter(function (v) { return !used[v.id]; })
+      .map(function (v) {
+        var label = v.type + ' · צ\'-' + v.tz + (v.active ? '' : ' (מושבת)');
+        return '<option value="' + v.id + '">' + esc(label) + '</option>';
+      });
+    var picker = $('#vehiclePicker');
+    picker.innerHTML = opts.length ? opts.join('') : '<option value="">— כל הרכבים משובצים —</option>';
+    picker.disabled = !opts.length;
+    $('#addToConvoy').disabled = !opts.length;
+  }
+
+  function addVehicleToConvoy(fid) {
+    var v = fleetById(fid); if (!v) return;
+    state.mission.vehicles.push({
+      fleetId: fid, driver: '', vcommander: '', personnel: 1,
+      dolev: 0, fuel: 0, cargo: ''
+    });
+  }
+
+  $('#addToConvoy').addEventListener('click', function () {
+    var fid = $('#vehiclePicker').value; if (!fid) return;
+    addVehicleToConvoy(fid);
+    renderConvoy(); renderPicker(); updateSummary(); save();
+  });
+
+  $('#addAllActive').addEventListener('click', function () {
+    var used = {};
+    state.mission.vehicles.forEach(function (mv) { used[mv.fleetId] = true; });
+    var added = 0;
+    state.fleet.forEach(function (v) {
+      if (v.active && !used[v.id]) { addVehicleToConvoy(v.id); added++; }
+    });
+    if (added) { renderConvoy(); renderPicker(); updateSummary(); save(); }
+    toast(added ? 'נוספו ' + added + ' רכבים' : 'כל הרכבים הכשירים כבר משובצים');
+  });
+
+  function renderConvoy() {
+    var tb = $('#convoyBody');
+    if (!state.mission.vehicles.length) {
+      tb.innerHTML = '<tr><td colspan="9"><div class="empty-note">טרם שובצו רכבים — בחרו רכב מהרשימה למעלה</div></td></tr>';
+      return;
+    }
+    tb.innerHTML = state.mission.vehicles.map(function (mv, i) {
+      var v = fleetById(mv.fleetId) || { type: '(רכב נמחק)', tz: '', dolevCap: 0, tanker: false };
+      var over = v.dolevCap > 0 && mv.dolev > v.dolevCap;
+      var roleChip = i === 0 ? '<span class="chip neutral">ראש שיירה</span>' :
+                     (i === state.mission.vehicles.length - 1 ? '<span class="chip neutral">מאסף</span>' : '');
+      return '<tr data-i="' + i + '">' +
+        '<td style="white-space:nowrap"><b class="cellnum">' + (i + 1) + '</b> ' +
+          '<button class="btn icon" data-act="up" title="הזז למעלה"' + (i === 0 ? ' disabled' : '') + '>▲</button>' +
+          '<button class="btn icon" data-act="down" title="הזז למטה"' + (i === state.mission.vehicles.length - 1 ? ' disabled' : '') + '>▼</button></td>' +
+        '<td style="white-space:nowrap"><b>' + esc(v.type) + '</b><br><span class="cellnum" style="color:var(--muted);font-size:12px">צ\'-' + esc(v.tz) + '</span> ' + roleChip +
+          (v.active === false ? ' <span class="chip crit">מושבת</span>' : '') + '</td>' +
+        '<td><input data-f="driver" value="' + esc(mv.driver) + '" placeholder="שם הנהג" style="min-width:110px"></td>' +
+        '<td><input data-f="vcommander" value="' + esc(mv.vcommander) + '" placeholder="מפקד הרכב" style="min-width:110px"></td>' +
+        '<td><input data-f="personnel" type="number" min="1" class="narrow" value="' + esc(mv.personnel) + '"></td>' +
+        '<td>' + (v.dolevCap > 0
+            ? '<input data-f="dolev" type="number" min="0" class="narrow' + (over ? ' invalid' : '') + '" value="' + esc(mv.dolev) + '"> <span style="color:var(--muted);font-size:12px">/ ' + v.dolevCap + '</span>'
+            : '<span style="color:var(--muted)">—</span>') + '</td>' +
+        '<td>' + (v.tanker
+            ? '<input data-f="fuel" type="number" min="0" step="50" class="narrow" value="' + esc(mv.fuel) + '">'
+            : '<span style="color:var(--muted)">—</span>') + '</td>' +
+        '<td><input data-f="cargo" value="' + esc(mv.cargo) + '" placeholder="פריטים שלא בדולב, מטען מיוחד..." style="min-width:170px"></td>' +
+        '<td><button class="btn icon danger" data-act="rm" title="הסר מהשיירה">✕</button></td>' +
+        '</tr>';
+    }).join('');
+  }
+
+  $('#convoyBody').addEventListener('input', function (e) {
+    var tr = e.target.closest('tr'); if (!tr || tr.dataset.i == null) return;
+    var mv = state.mission.vehicles[+tr.dataset.i]; if (!mv) return;
+    var f = e.target.dataset.f;
+    if (f === 'personnel' || f === 'dolev' || f === 'fuel') {
+      mv[f] = Math.max(0, parseInt(e.target.value, 10) || 0);
+      if (f === 'dolev') {
+        var v = fleetById(mv.fleetId);
+        var over = v && v.dolevCap > 0 && mv.dolev > v.dolevCap;
+        e.target.classList.toggle('invalid', !!over);
+      }
+    } else {
+      mv[f] = e.target.value;
+    }
+    updateSummary(); save();
+  });
+
+  $('#convoyBody').addEventListener('click', function (e) {
+    var btn = e.target.closest('button[data-act]'); if (!btn) return;
+    var tr = btn.closest('tr'); if (!tr || tr.dataset.i == null) return;
+    var i = +tr.dataset.i;
+    var arr = state.mission.vehicles;
+    var act = btn.dataset.act;
+    if (act === 'rm') arr.splice(i, 1);
+    if (act === 'up' && i > 0) { var t = arr[i - 1]; arr[i - 1] = arr[i]; arr[i] = t; }
+    if (act === 'down' && i < arr.length - 1) { var t2 = arr[i + 1]; arr[i + 1] = arr[i]; arr[i] = t2; }
+    renderConvoy(); renderPicker(); updateSummary(); save();
+  });
+
+  /* ---------------- Summary ---------------- */
+  function computeTotals() {
+    var t = { vehicles: 0, personnel: 0, dolev: 0, dolevCap: 0, fuel: 0, over: false, inactive: 0 };
+    state.mission.vehicles.forEach(function (mv) {
+      var v = fleetById(mv.fleetId); if (!v) return;
+      t.vehicles++;
+      t.personnel += mv.personnel || 0;
+      t.dolev += mv.dolev || 0;
+      t.dolevCap += v.dolevCap || 0;
+      if (v.tanker) t.fuel += mv.fuel || 0;
+      if (v.dolevCap > 0 && mv.dolev > v.dolevCap) t.over = true;
+      if (v.active === false) t.inactive++;
+    });
+    return t;
+  }
+
+  function updateSummary() {
+    var t = computeTotals();
+    $('#summaryBar').innerHTML =
+      '<div class="stat"><div class="label">רכבים בשיירה</div><div class="value">' + t.vehicles + '</div></div>' +
+      '<div class="stat"><div class="label">כוח אדם</div><div class="value">' + t.personnel + '</div></div>' +
+      '<div class="stat' + (t.over ? ' alert' : '') + '"><div class="label">דולבים</div><div class="value">' + t.dolev + ' <small>/ ' + t.dolevCap + ' קיבולת</small></div></div>' +
+      '<div class="stat"><div class="label">סולר (ליטר)</div><div class="value">' + t.fuel.toLocaleString() + '</div></div>' +
+      (t.inactive ? '<div class="stat alert"><div class="label">שימו לב</div><div class="value" style="font-size:15px">' + t.inactive + ' רכבים מושבתים בשיירה</div></div>' : '');
+  }
+
+  /* ---------------- Checklist ---------------- */
+  function renderChecklist() {
+    var box = $('#checklistBox');
+    box.innerHTML = state.mission.checklist.map(function (c, i) {
+      return '<div class="check-item">' +
+        '<input type="checkbox" id="chk' + i + '" data-i="' + i + '"' + (c.done ? ' checked' : '') + '>' +
+        '<label for="chk' + i + '">' + esc(c.text) + '</label>' +
+        '<button class="btn icon rm no-print" data-rm="' + i + '" title="הסר פריט">✕</button>' +
+        '</div>';
+    }).join('');
+  }
+  $('#checklistBox').addEventListener('change', function (e) {
+    if (e.target.type !== 'checkbox') return;
+    state.mission.checklist[+e.target.dataset.i].done = e.target.checked;
+    save();
+  });
+  $('#checklistBox').addEventListener('click', function (e) {
+    var btn = e.target.closest('[data-rm]'); if (!btn) return;
+    state.mission.checklist.splice(+btn.dataset.rm, 1);
+    renderChecklist(); save();
+  });
+  $('#addCheckItem').addEventListener('click', function () {
+    var inp = $('#newCheckItem');
+    var txt = inp.value.trim(); if (!txt) return;
+    state.mission.checklist.push({ text: txt, done: false });
+    inp.value = '';
+    renderChecklist(); save();
+  });
+  $('#newCheckItem').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); $('#addCheckItem').click(); }
+  });
+
+  /* ---------------- Report ---------------- */
+  function validateMission() {
+    var issues = [];
+    var m = state.mission;
+    if (!m.title) issues.push({ level: 'crit', text: 'חסרה כותרת משימה' });
+    if (!m.date) issues.push({ level: 'crit', text: 'חסר תאריך משימה' });
+    if (!m.commander) issues.push({ level: 'crit', text: 'חסר שם מפקד משימה' });
+    if (!m.vehicles.length) issues.push({ level: 'crit', text: 'לא שובצו רכבים לשיירה' });
+    m.vehicles.forEach(function (mv, i) {
+      var v = fleetById(mv.fleetId); if (!v) return;
+      var name = v.type + ' צ\'-' + v.tz;
+      if (!mv.driver) issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): לא מולא שם נהג' });
+      if (v.dolevCap > 0 && mv.dolev > v.dolevCap)
+        issues.push({ level: 'crit', text: 'רכב ' + (i + 1) + ' (' + name + '): חריגת העמסה — ' + mv.dolev + ' דולבים מתוך קיבולת ' + v.dolevCap });
+      if (v.active === false) issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): מסומן כמושבת בצי' });
+      if (v.tanker && !mv.fuel) issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): לא צוינה כמות סולר' });
+    });
+    var unchecked = m.checklist.filter(function (c) { return !c.done; }).length;
+    if (unchecked) issues.push({ level: 'warn', text: unchecked + ' פריטי וידוא מוכנות טרם סומנו' });
+    return issues;
+  }
+
+  function renderReport() {
+    var m = state.mission;
+    var t = computeTotals();
+    var issues = validateMission();
+
+    $('#issuesBox').innerHTML = issues.map(function (it) {
+      return '<div class="issue ' + it.level + '">' + (it.level === 'crit' ? '⛔ ' : '⚠ ') + esc(it.text) + '</div>';
+    }).join('');
+
+    var now = new Date();
+    var genStamp = ('0' + now.getDate()).slice(-2) + '.' + ('0' + (now.getMonth() + 1)).slice(-2) + '.' + now.getFullYear() +
+      ' ' + ('0' + now.getHours()).slice(-2) + ':' + ('0' + now.getMinutes()).slice(-2);
+
+    var rows = m.vehicles.map(function (mv, i) {
+      var v = fleetById(mv.fleetId) || { type: '(רכב נמחק)', tz: '', dolevCap: 0, tanker: false };
+      var role = i === 0 ? ' (ראש שיירה)' : (i === m.vehicles.length - 1 && m.vehicles.length > 1 ? ' (מאסף)' : '');
+      return '<tr>' +
+        '<td class="cellnum">' + (i + 1) + '</td>' +
+        '<td><b>' + esc(v.type) + '</b>' + role + '</td>' +
+        '<td class="cellnum">' + esc(v.tz) + '</td>' +
+        '<td>' + (esc(mv.driver) || '—') + '</td>' +
+        '<td>' + (esc(mv.vcommander) || '—') + '</td>' +
+        '<td class="cellnum">' + (mv.personnel || 0) + '</td>' +
+        '<td class="cellnum">' + (v.dolevCap > 0 ? (mv.dolev || 0) + ' / ' + v.dolevCap : '—') + '</td>' +
+        '<td class="cellnum">' + (v.tanker ? (mv.fuel || 0).toLocaleString() : '—') + '</td>' +
+        '<td>' + esc(mv.cargo || v.notes || '') + '</td>' +
+        '</tr>';
+    }).join('');
+
+    var checksDone = m.checklist.filter(function (c) { return c.done; });
+    var checksOpen = m.checklist.filter(function (c) { return !c.done; });
+
+    $('#reportSheet').innerHTML =
+      '<div class="doc-head">' +
+        '<div>' +
+          '<div class="cls">' + (esc(state.unitName) || 'פקודת שיירה') + '</div>' +
+          '<h3 class="doc-title">' + (esc(m.title) || 'פקודת שיירה — ללא כותרת') + '</h3>' +
+        '</div>' +
+        '<div class="doc-meta">תאריך המשימה: <b>' + (fmtDate(m.date) || '—') + '</b><br>הופק: ' + genStamp + '</div>' +
+      '</div>' +
+
+      '<h4><span class="secnum">1.</span> כללי</h4>' +
+      '<div class="kv">' +
+        '<div><b>מפקד המשימה</b>' + (esc(m.commander) || '—') + '</div>' +
+        '<div><b>שעת יציאה</b>' + (esc(m.depart) || '—') + '</div>' +
+        '<div><b>חזרה משוערת</b>' + (esc(m.ret) || '—') + '</div>' +
+        '<div><b>ציר תנועה</b>' + (esc(m.route) || '—') + '</div>' +
+        '<div><b>תדר / ערוץ קשר</b>' + (esc(m.freq) || '—') + '</div>' +
+        '<div><b>אות קריאה</b>' + (esc(m.callsign) || '—') + '</div>' +
+        '<div><b>מרווח בין רכבים</b>' + (m.gap ? esc(m.gap) + ' מ\'' : '—') + '</div>' +
+      '</div>' +
+      (m.notes ? '<p class="prose" style="margin:8px 0 0"><b>הערות:</b> ' + esc(m.notes) + '</p>' : '') +
+
+      '<h4><span class="secnum">2.</span> סדר נסיעה ושיבוץ</h4>' +
+      (m.vehicles.length ?
+        '<div class="table-wrap"><table>' +
+        '<thead><tr><th>#</th><th>סוג רכב</th><th>צ\'</th><th>נהג</th><th>מפקד רכב</th><th>נוסעים</th><th>דולבים</th><th>סולר (ל\')</th><th>מטען / הערות</th></tr></thead>' +
+        '<tbody>' + rows +
+        '<tr class="totals-row"><td colspan="5">סה"כ</td>' +
+        '<td class="cellnum">' + t.personnel + '</td>' +
+        '<td class="cellnum">' + t.dolev + ' / ' + t.dolevCap + '</td>' +
+        '<td class="cellnum">' + t.fuel.toLocaleString() + '</td><td></td></tr>' +
+        '</tbody></table></div>'
+        : '<div class="empty-note">לא שובצו רכבים</div>') +
+
+      '<h4><span class="secnum">3.</span> וידוא מוכנות</h4>' +
+      (m.checklist.length ?
+        ('<ul class="report-checks">' +
+          checksDone.map(function (c) { return '<li>☑ ' + esc(c.text) + '</li>'; }).join('') +
+          checksOpen.map(function (c) { return '<li style="font-weight:700">☐ ' + esc(c.text) + ' — טרם בוצע</li>'; }).join('') +
+        '</ul>')
+        : '<div class="empty-note">אין פריטי וידוא</div>') +
+
+      '<h4><span class="secnum">4.</span> נהלי חירום ובטיחות</h4>' +
+      '<p class="prose">' + esc(m.emergency || '—') + '</p>' +
+
+      '<div class="sigs">' +
+        '<div class="sig"><div class="line"></div><b>' + (esc(m.commander) || '________________') + '</b><span>מפקד המשימה</span></div>' +
+        '<div class="sig"><div class="line"></div><b>________________</b><span>מאשר היציאה</span></div>' +
+      '</div>';
+  }
+
+  $('#goReport').addEventListener('click', function () { showTab('report'); });
+  $('#backToPrep').addEventListener('click', function () { showTab('prep'); });
+  $('#printBtn').addEventListener('click', function () { window.print(); });
+
+  /* ---------------- Archive ---------------- */
+  function archiveCurrent() {
+    var m = state.mission;
+    if (!m.title && !m.vehicles.length) { toast('אין משימה לשמירה'); return; }
+    state.archive.unshift({
+      savedAt: Date.now(),
+      mission: JSON.parse(JSON.stringify(m)),
+      label: (m.title || 'ללא כותרת') + (m.date ? ' · ' + fmtDate(m.date) : '')
+    });
+    if (state.archive.length > 40) state.archive.length = 40;
+    save();
+    toast('המשימה נשמרה לארכיון');
+  }
+  $('#saveToArchive').addEventListener('click', archiveCurrent);
+  $('#saveToArchive2').addEventListener('click', archiveCurrent);
+
+  function renderArchive() {
+    var box = $('#archiveList');
+    if (!state.archive.length) {
+      box.innerHTML = '<div class="empty-note">הארכיון ריק — שמרו משימה מלשונית ההכנה</div>';
+      return;
+    }
+    box.innerHTML = state.archive.map(function (a, i) {
+      var d = new Date(a.savedAt);
+      var stamp = ('0' + d.getDate()).slice(-2) + '.' + ('0' + (d.getMonth() + 1)).slice(-2) + '.' + d.getFullYear() +
+        ' ' + ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+      return '<div class="arch-item">' +
+        '<span class="t">' + esc(a.label) + '</span>' +
+        '<span class="d">נשמר: ' + stamp + '</span>' +
+        '<span class="sp">' +
+          '<button class="btn small primary" data-load="' + i + '">טען</button>' +
+          '<button class="btn small danger" data-del="' + i + '">מחק</button>' +
+        '</span></div>';
+    }).join('');
+  }
+  $('#archiveList').addEventListener('click', function (e) {
+    var loadBtn = e.target.closest('[data-load]');
+    var delBtn = e.target.closest('[data-del]');
+    if (loadBtn) {
+      if (!confirm('טעינת המשימה תחליף את המשימה הנוכחית. להמשיך?')) return;
+      state.mission = JSON.parse(JSON.stringify(state.archive[+loadBtn.dataset.load].mission));
+      bindMissionFields(); renderConvoy(); renderChecklist(); renderPicker(); updateSummary(); save();
+      showTab('prep');
+      toast('המשימה נטענה');
+    }
+    if (delBtn) {
+      if (!confirm('למחוק משימה זו מהארכיון?')) return;
+      state.archive.splice(+delBtn.dataset.del, 1);
+      renderArchive(); save();
+    }
+  });
+
+  /* ---------------- Clear mission ---------------- */
+  $('#clearMission').addEventListener('click', function () {
+    if (!confirm('לנקות את כל פרטי המשימה הנוכחית? (הצי והארכיון נשמרים)')) return;
+    state.mission = emptyMission();
+    bindMissionFields(); renderConvoy(); renderChecklist(); renderPicker(); updateSummary(); save();
+    toast('המשימה נוקתה');
+  });
+
+  /* ---------------- Init ---------------- */
+  function initAll() {
+    $('#unitName').value = state.unitName || '';
+    renderFleet();
+    bindMissionFields();
+    renderConvoy();
+    renderChecklist();
+    renderPicker();
+    updateSummary();
+    renderArchive();
+  }
+  initAll();
+})();
+</script>
+
+</body>
+</html>
