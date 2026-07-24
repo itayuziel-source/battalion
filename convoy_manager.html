@@ -318,6 +318,26 @@
   .arch-item .d { color: var(--muted); font-size: 13px; font-variant-numeric: tabular-nums; }
   .arch-item .sp { margin-inline-start: auto; display: flex; gap: 6px; }
 
+  /* ---------- Image overlay ---------- */
+  #imgOverlay {
+    position: fixed; inset: 0; background: rgba(15,17,10,.94); z-index: 60;
+    overflow-y: auto; display: none; -webkit-overflow-scrolling: touch;
+  }
+  #imgOverlay.show { display: block; }
+  .imgbar {
+    position: sticky; top: 0; z-index: 2; background: rgba(15,17,10,.97);
+    display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+    padding: 12px 16px; border-bottom: 1px solid rgba(255,255,255,.15);
+  }
+  .imgbar .tip { color: #F2F1E9; font-size: 14px; font-weight: 600; flex: 1; min-width: 200px; }
+  .imgbar .tip small { display: block; font-weight: 400; opacity: .75; font-size: 12.5px; }
+  .imgbar .btn { background: #F2F1E9; color: #21251B; border-color: transparent; }
+  .pageimg {
+    display: block; width: min(96%, 820px); margin: 14px auto; background: #fff;
+    box-shadow: 0 4px 24px rgba(0,0,0,.5); border-radius: 4px;
+    -webkit-touch-callout: default;
+  }
+
   /* ---------- Toast ---------- */
   #toast {
     position: fixed; bottom: 22px; right: 50%; transform: translateX(50%);
@@ -467,10 +487,12 @@
   <!-- ============ REPORT ============ -->
   <section class="pane" id="pane-report">
     <div class="report-actions">
+      <button class="btn primary" id="imgBtn">🖼 תמונה לשיתוף</button>
       <button class="btn primary" id="pdfBtn">📄 הורדת PDF</button>
-      <button class="btn primary" id="shareBtn">📤 שיתוף / וואטסאפ</button>
-      <button class="btn" id="printBtn">🖨 הדפסה</button>
+      <a class="btn" id="waLink" target="_blank" rel="noopener">💬 שליחה בוואטסאפ</a>
+      <button class="btn" id="shareBtn">📤 שיתוף</button>
       <button class="btn" id="copyTextBtn">📋 העתקה כטקסט</button>
+      <button class="btn" id="printBtn">🖨 הדפסה</button>
       <button class="btn" id="backToPrep">→ חזרה לעריכה</button>
       <button class="btn" id="saveToArchive2">שמור לארכיון</button>
     </div>
@@ -487,6 +509,8 @@
     </div>
   </section>
 </div>
+
+<div id="imgOverlay" role="dialog" aria-label="תמונות הפקודה לשיתוף"></div>
 
 <div id="toast" role="status"></div>
 
@@ -1057,6 +1081,8 @@
         '<div class="sig"><div class="line"></div><b>' + (esc(m.commander) || '________________') + '</b><span>מפקד המשימה</span></div>' +
         '<div class="sig"><div class="line"></div><b>________________</b><span>מאשר היציאה</span></div>' +
       '</div>';
+
+    updateWaLink();
   }
 
   /* Standalone printable report document (opens in a new window or downloads
@@ -1352,12 +1378,79 @@
     }, shareText);
   }
 
+  /* --- Image mode: the report as on-screen images. Long-press (mobile) or
+         right-click (desktop) to save/share — native browser behavior that
+         no embedded viewer can block. --- */
+  function showImageMode() {
+    toast('מכין תמונות...');
+    renderReportCanvas(function (canvas) {
+      var urls = [];
+      var maxH = 2600 * 2;
+      if (canvas.height <= maxH) {
+        urls.push(canvas.toDataURL('image/jpeg', 0.92));
+      } else {
+        var n = Math.ceil(canvas.height / maxH);
+        for (var p = 0; p < n; p++) {
+          var c = document.createElement('canvas');
+          c.width = canvas.width;
+          c.height = Math.min(maxH, canvas.height - p * maxH);
+          var cx = c.getContext('2d');
+          cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height);
+          cx.drawImage(canvas, 0, -p * maxH);
+          urls.push(c.toDataURL('image/jpeg', 0.92));
+        }
+      }
+      openImageOverlay(urls);
+    }, function () {
+      toast('יצירת תמונה נכשלה בדפדפן זה — נסו את "העתקה כטקסט"');
+    });
+  }
+
+  function openImageOverlay(urls) {
+    var ov = $('#imgOverlay');
+    ov.innerHTML =
+      '<div class="imgbar">' +
+        '<span class="tip">לחיצה ארוכה על התמונה ← שיתוף / שמירה בתמונות' +
+        '<small>במחשב: קליק ימני ← שמירת תמונה. מכאן שולחים ישר לוואטסאפ.</small></span>' +
+        '<button class="btn" id="shareImgsBtn">📤 שיתוף</button>' +
+        '<button class="btn" id="closeImgs">✕ סגירה</button>' +
+      '</div>' +
+      urls.map(function (u, i) {
+        return '<img class="pageimg" src="' + u + '" alt="פקודת שיירה — עמוד ' + (i + 1) + '">';
+      }).join('');
+    ov.classList.add('show');
+    ov.scrollTop = 0;
+    $('#closeImgs').addEventListener('click', function () {
+      ov.classList.remove('show');
+      ov.innerHTML = '';
+    });
+    $('#shareImgsBtn').addEventListener('click', function () {
+      try {
+        var files = urls.map(function (u, i) {
+          return new File([b64ToBytes(u.split(',')[1])], 'convoy-order-' + (i + 1) + '.jpg', { type: 'image/jpeg' });
+        });
+        if (navigator.canShare && navigator.canShare({ files: files })) {
+          navigator.share({ files: files, title: state.mission.title || 'פקודת שיירה' }).catch(function () {});
+          return;
+        }
+      } catch (e) {}
+      if (navigator.share) navigator.share({ text: reportAsText() }).catch(function () {});
+      else copyText();
+    });
+  }
+
+  function updateWaLink() {
+    var el = $('#waLink');
+    if (el) el.href = 'https://wa.me/?text=' + encodeURIComponent(reportAsText());
+  }
+
   $('#goReport').addEventListener('click', function () { showTab('report'); });
   $('#backToPrep').addEventListener('click', function () { showTab('prep'); });
   $('#printBtn').addEventListener('click', smartPrint);
   $('#pdfBtn').addEventListener('click', exportPdf);
   $('#shareBtn').addEventListener('click', shareReport);
   $('#copyTextBtn').addEventListener('click', copyText);
+  $('#imgBtn').addEventListener('click', showImageMode);
 
   /* ---------------- Archive ---------------- */
   function archiveCurrent() {
