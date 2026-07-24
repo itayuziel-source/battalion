@@ -487,6 +487,7 @@
   <!-- ============ REPORT ============ -->
   <section class="pane" id="pane-report">
     <div class="report-actions">
+      <button class="btn primary" id="claudePdfBtn">🤖 PDF דרך Claude</button>
       <button class="btn primary" id="imgBtn">🖼 תמונה לשיתוף</button>
       <button class="btn primary" id="pdfBtn">📄 הורדת PDF</button>
       <a class="btn" id="waLink" target="_blank" rel="noopener">💬 שליחה בוואטסאפ</a>
@@ -1342,8 +1343,7 @@
     return L.join('\n');
   }
 
-  function copyText() {
-    var txt = reportAsText();
+  function copyToClipboard(txt, okMsg) {
     function fallback() {
       var ta = document.createElement('textarea');
       ta.value = txt;
@@ -1352,15 +1352,31 @@
       ta.select();
       try {
         document.execCommand('copy');
-        toast('הטקסט הועתק — הדביקו בוואטסאפ');
+        toast(okMsg);
       } catch (e) { toast('ההעתקה נחסמה בדפדפן זה'); }
       ta.remove();
     }
     if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(txt).then(function () {
-        toast('הטקסט הועתק — הדביקו בוואטסאפ');
-      }, fallback);
+      navigator.clipboard.writeText(txt).then(function () { toast(okMsg); }, fallback);
     } else fallback();
+  }
+
+  function copyText() {
+    copyToClipboard(reportAsText(), 'הטקסט הועתק — הדביקו בוואטסאפ');
+  }
+
+  function copyPdfPayload() {
+    renderReport();
+    var payload = {
+      kind: 'convoy-mission-pdf',
+      unitName: state.unitName || '',
+      fleet: state.fleet,
+      mission: state.mission
+    };
+    copyToClipboard(
+      'הפק לי בבקשה PDF של פקודת השיירה מהנתונים הבאים:\n' + JSON.stringify(payload),
+      'הנתונים הועתקו! הדביקו בצ\'אט של Claude — ותקבלו קובץ PDF מסודר'
+    );
   }
 
   function shareReport() {
@@ -1451,6 +1467,7 @@
   $('#shareBtn').addEventListener('click', shareReport);
   $('#copyTextBtn').addEventListener('click', copyText);
   $('#imgBtn').addEventListener('click', showImageMode);
+  $('#claudePdfBtn').addEventListener('click', copyPdfPayload);
 
   /* ---------------- Archive ---------------- */
   function archiveCurrent() {
