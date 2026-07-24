@@ -1121,7 +1121,13 @@
       var cnt = dolevCount(mv);
       if (!cnt && !mv.cargo) return '';
       var grid = '';
-      if (v.dolevCap > 0 && cnt) grid = truckSketchSVG(mv, v);
+      if (v.dolevCap > 1 && cnt) {
+        grid = truckSketchSVG(mv, v);
+      } else if (v.dolevCap === 1 && cnt) {
+        var s0 = mv.slots[0] || {};
+        grid = '<div class="plan-grid single"><div class="plan-cell"><b>דולב 1</b> — ' +
+          [s0.owner, s0.content].filter(Boolean).map(esc).join(': ') + '</div></div>';
+      }
       return '<div class="plan-veh">' +
         '<b>' + (i + 1) + '. ' + esc(v.type) + ' · צ\'-' + esc(v.tz) + '</b>' +
         (v.dolevCap > 0 && cnt ? ' <span style="color:var(--muted)">(' + cnt + ' דולבים)</span>' : '') +
