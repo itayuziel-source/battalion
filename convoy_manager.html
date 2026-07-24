@@ -457,11 +457,6 @@
       </div>
     </div>
 
-    <div class="card">
-      <h2>נהלי חירום ובטיחות <span class="hint">נכלל בפקודת השיירה — ערכו לפי הצורך</span></h2>
-      <div class="field"><textarea id="mEmergency" rows="6"></textarea></div>
-    </div>
-
     <div class="toolbar">
       <button class="btn primary" id="goReport">הפק פקודת שיירה ←</button>
       <button class="btn" id="saveToArchive">שמור משימה לארכיון</button>
@@ -505,19 +500,16 @@
     'גלגל רזרבי ומגבה בכל רכב',
     'כבל גרירה בשיירה',
     'ערכת עזרה ראשונה',
+    'עיגון וקשירת דולבים ומטען'
+  ];
+
+  var REMOVED_CHECKLIST = [
     'מים — לפחות 3 ליטר לאדם',
     'אפוד וקסדה לכל נוסע',
     'נשק ותחמושת לפי פקודה',
-    'עיגון וקשירת דולבים ומטען',
     'אישור יציאה מהחמ"ל',
     'תיאום ציר ונקודות עצירה'
   ];
-
-  var DEFAULT_EMERGENCY =
-    'רכב מתקלקל: השיירה עוצרת בשול, אבטחה היקפית, דיווח מיידי למפקד השיירה ולחמ"ל.\n' +
-    'איבוד קשר עין: הרכב האחרון מדווח, השיירה מאיטה עד להתחברות מחדש.\n' +
-    'אר"ן / נפגעים: עצירה, טיפול ראשוני, דיווח וחילוץ לפי נוהל היחידה.\n' +
-    'עצירה יזומה רק בנקודות שאושרו מראש. אין עקיפות בתוך השיירה.';
 
   function defaultFleet() {
     return [
@@ -534,7 +526,6 @@
     return {
       title: '', date: '', commander: '', depart: '', ret: '', route: '',
       freq: '', callsign: '', gap: '', notes: '',
-      emergency: DEFAULT_EMERGENCY,
       vehicles: [],
       checklist: DEFAULT_CHECKLIST.map(function (t) { return { text: t, done: false }; })
     };
@@ -689,7 +680,7 @@
     ['mTitle', 'title'], ['mDate', 'date'], ['mCommander', 'commander'],
     ['mDepart', 'depart'], ['mReturn', 'ret'], ['mRoute', 'route'],
     ['mFreq', 'freq'], ['mCallsign', 'callsign'], ['mGap', 'gap'],
-    ['mNotes', 'notes'], ['mEmergency', 'emergency']
+    ['mNotes', 'notes']
   ];
   function bindMissionFields() {
     missionFields.forEach(function (pair) {
@@ -940,17 +931,9 @@
       var v = fleetById(mv.fleetId); if (!v) return;
       var name = v.type + ' צ\'-' + v.tz;
       if (!mv.driver) issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): לא מולא שם נהג' });
-      (mv.slots || []).forEach(function (s, si) {
-        if (s.content && !s.owner)
-          issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): דולב ' + (si + 1) + ' — לא צוין של מי הדולב' });
-        if (s.owner && !s.content)
-          issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): דולב ' + (si + 1) + ' — לא צוין מה נכנס בפנים' });
-      });
       if (v.active === false) issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): מסומן כמושבת בצי' });
       if (v.tanker && !mv.fuel) issues.push({ level: 'warn', text: 'רכב ' + (i + 1) + ' (' + name + '): לא צוינה כמות סולר' });
     });
-    var unchecked = m.checklist.filter(function (c) { return !c.done; }).length;
-    if (unchecked) issues.push({ level: 'warn', text: unchecked + ' פריטי וידוא מוכנות טרם סומנו' });
     return issues;
   }
 
@@ -979,9 +962,9 @@
         '<td>' + (esc(mv.driver) || '—') + '</td>' +
         '<td>' + (esc(mv.vcommander) || '—') + '</td>' +
         '<td class="cellnum">' + (mv.personnel || 0) + '</td>' +
-        '<td class="cellnum">' + (v.dolevCap > 0 ? dolevCount(mv) + ' / ' + v.dolevCap : '—') + '</td>' +
-        '<td class="cellnum">' + (v.tanker ? (mv.fuel || 0).toLocaleString() : '—') + '</td>' +
-        '<td>' + (cargoShort ? esc(cargoShort) + ' (פירוט בסעיף 3)' : esc(v.notes || '')) + '</td>' +
+        '<td class="cellnum">' + (v.dolevCap > 0 && dolevCount(mv) ? dolevCount(mv) : '—') + '</td>' +
+        '<td class="cellnum">' + (v.tanker && mv.fuel ? mv.fuel.toLocaleString() : '—') + '</td>' +
+        '<td>' + (cargoShort ? esc(cargoShort) + ' (פירוט בתוכנית ההעמסה)' : '') + '</td>' +
         '</tr>';
     }).join('');
 
@@ -992,29 +975,67 @@
       if (!cnt && !mv.cargo) return '';
       var grid = '';
       if (v.dolevCap > 0 && cnt) {
-        grid = '<div class="plan-grid' + (v.dolevCap === 1 ? ' single' : '') + '">' +
-          mv.slots.map(function (s, si) {
-            var filled = s.owner || s.content;
-            var side = v.dolevCap > 1 ? (si % 2 === 0 ? ' · ימין' : ' · שמאל') : '';
-            return '<div class="plan-cell' + (filled ? '' : ' empty') + '">' +
-              '<b>דולב ' + (si + 1) + side + '</b> — ' +
-              (filled
-                ? esc(s.owner || 'ללא שיוך') + ': ' + esc(s.content || 'לא פורט')
-                : 'פנוי') +
-              '</div>';
-          }).join('') + '</div>' +
-          '<div style="font-size:11.5px;color:var(--muted);margin-top:3px">סדר העמסה: דולב 1 נטען ראשון (צמוד לקבינה), שני טורים — ימין ושמאל, מספור מהקדמה לאחור.</div>';
+        var cells = [];
+        mv.slots.forEach(function (s, si) {
+          if (!s.owner && !s.content) return;
+          var side = v.dolevCap > 1 ? (si % 2 === 0 ? ' · ימין' : ' · שמאל') : '';
+          var desc = [s.owner, s.content].filter(Boolean).map(esc).join(': ');
+          cells.push('<div class="plan-cell"><b>דולב ' + (si + 1) + side + '</b> — ' + desc + '</div>');
+        });
+        grid = '<div class="plan-grid' + (v.dolevCap === 1 ? ' single' : '') + '">' + cells.join('') + '</div>';
       }
       return '<div class="plan-veh">' +
         '<b>' + (i + 1) + '. ' + esc(v.type) + ' · צ\'-' + esc(v.tz) + '</b>' +
-        (v.dolevCap > 0 ? ' <span style="color:var(--muted)">(' + cnt + ' / ' + v.dolevCap + ' דולבים)</span>' : '') +
+        (v.dolevCap > 0 && cnt ? ' <span style="color:var(--muted)">(' + cnt + ' דולבים)</span>' : '') +
         grid +
         (mv.cargo ? '<div class="plan-cargo"><b>פריטים שלא בדולב — נמצאים על הרכב:</b>\n' + esc(mv.cargo) + '</div>' : '') +
         '</div>';
     }).join('');
 
     var checksDone = m.checklist.filter(function (c) { return c.done; });
-    var checksOpen = m.checklist.filter(function (c) { return !c.done; });
+
+    var kvItems = [
+      ['מפקד המשימה', m.commander],
+      ['שעת יציאה', m.depart],
+      ['חזרה משוערת', m.ret],
+      ['ציר תנועה', m.route],
+      ['תדר / ערוץ קשר', m.freq],
+      ['אות קריאה', m.callsign],
+      ['מרווח בין רכבים', m.gap ? m.gap + ' מ\'' : '']
+    ].filter(function (p) { return p[1]; });
+
+    var sections = [];
+    if (kvItems.length || m.notes) {
+      sections.push({
+        title: 'כללי',
+        html: '<div class="kv">' +
+          kvItems.map(function (p) { return '<div><b>' + p[0] + '</b>' + esc(p[1]) + '</div>'; }).join('') +
+          '</div>' +
+          (m.notes ? '<p class="prose" style="margin:8px 0 0"><b>הערות:</b> ' + esc(m.notes) + '</p>' : '')
+      });
+    }
+    sections.push({
+      title: 'סדר נסיעה ושיבוץ',
+      html: m.vehicles.length ?
+        '<div class="table-wrap"><table>' +
+        '<thead><tr><th>#</th><th>סוג רכב</th><th>צ\'</th><th>נהג</th><th>מפקד רכב</th><th>נוסעים</th><th>דולבים</th><th>סולר (ל\')</th><th>מטען / הערות</th></tr></thead>' +
+        '<tbody>' + rows +
+        '<tr class="totals-row"><td colspan="5">סה"כ</td>' +
+        '<td class="cellnum">' + t.personnel + '</td>' +
+        '<td class="cellnum">' + t.dolev + '</td>' +
+        '<td class="cellnum">' + t.fuel.toLocaleString() + '</td><td></td></tr>' +
+        '</tbody></table></div>'
+        : '<div class="empty-note">לא שובצו רכבים</div>'
+    });
+    if (planSec) sections.push({ title: 'תוכנית העמסה — דולבים ופריטים', html: planSec });
+    if (checksDone.length) {
+      sections.push({
+        title: 'וידוא מוכנות — בוצע',
+        html: '<ul class="report-checks">' +
+          checksDone.map(function (c) { return '<li>☑ ' + esc(c.text) + '</li>'; }).join('') +
+          '</ul>'
+      });
+    }
 
     $('#reportSheet').innerHTML =
       '<div class="doc-head">' +
@@ -1025,43 +1046,9 @@
         '<div class="doc-meta">תאריך המשימה: <b>' + (fmtDate(m.date) || '—') + '</b><br>הופק: ' + genStamp + '</div>' +
       '</div>' +
 
-      '<h4><span class="secnum">1.</span> כללי</h4>' +
-      '<div class="kv">' +
-        '<div><b>מפקד המשימה</b>' + (esc(m.commander) || '—') + '</div>' +
-        '<div><b>שעת יציאה</b>' + (esc(m.depart) || '—') + '</div>' +
-        '<div><b>חזרה משוערת</b>' + (esc(m.ret) || '—') + '</div>' +
-        '<div><b>ציר תנועה</b>' + (esc(m.route) || '—') + '</div>' +
-        '<div><b>תדר / ערוץ קשר</b>' + (esc(m.freq) || '—') + '</div>' +
-        '<div><b>אות קריאה</b>' + (esc(m.callsign) || '—') + '</div>' +
-        '<div><b>מרווח בין רכבים</b>' + (m.gap ? esc(m.gap) + ' מ\'' : '—') + '</div>' +
-      '</div>' +
-      (m.notes ? '<p class="prose" style="margin:8px 0 0"><b>הערות:</b> ' + esc(m.notes) + '</p>' : '') +
-
-      '<h4><span class="secnum">2.</span> סדר נסיעה ושיבוץ</h4>' +
-      (m.vehicles.length ?
-        '<div class="table-wrap"><table>' +
-        '<thead><tr><th>#</th><th>סוג רכב</th><th>צ\'</th><th>נהג</th><th>מפקד רכב</th><th>נוסעים</th><th>דולבים</th><th>סולר (ל\')</th><th>מטען / הערות</th></tr></thead>' +
-        '<tbody>' + rows +
-        '<tr class="totals-row"><td colspan="5">סה"כ</td>' +
-        '<td class="cellnum">' + t.personnel + '</td>' +
-        '<td class="cellnum">' + t.dolev + ' / ' + t.dolevCap + '</td>' +
-        '<td class="cellnum">' + t.fuel.toLocaleString() + '</td><td></td></tr>' +
-        '</tbody></table></div>'
-        : '<div class="empty-note">לא שובצו רכבים</div>') +
-
-      '<h4><span class="secnum">3.</span> תוכנית העמסה — דולבים ופריטים</h4>' +
-      (planSec || '<div class="empty-note">לא מולאה תוכנית העמסה</div>') +
-
-      '<h4><span class="secnum">4.</span> וידוא מוכנות</h4>' +
-      (m.checklist.length ?
-        ('<ul class="report-checks">' +
-          checksDone.map(function (c) { return '<li>☑ ' + esc(c.text) + '</li>'; }).join('') +
-          checksOpen.map(function (c) { return '<li style="font-weight:700">☐ ' + esc(c.text) + ' — טרם בוצע</li>'; }).join('') +
-        '</ul>')
-        : '<div class="empty-note">אין פריטי וידוא</div>') +
-
-      '<h4><span class="secnum">5.</span> נהלי חירום ובטיחות</h4>' +
-      '<p class="prose">' + esc(m.emergency || '—') + '</p>' +
+      sections.map(function (s, i) {
+        return '<h4><span class="secnum">' + (i + 1) + '.</span> ' + s.title + '</h4>' + s.html;
+      }).join('') +
 
       '<div class="sigs">' +
         '<div class="sig"><div class="line"></div><b>' + (esc(m.commander) || '________________') + '</b><span>מפקד המשימה</span></div>' +
@@ -1134,7 +1121,19 @@
   });
 
   /* ---------------- Init ---------------- */
+  function migrate() {
+    function strip(mission) {
+      if (!mission || !mission.checklist) return;
+      mission.checklist = mission.checklist.filter(function (c) {
+        return REMOVED_CHECKLIST.indexOf(c.text) === -1;
+      });
+    }
+    strip(state.mission);
+    (state.archive || []).forEach(function (a) { strip(a.mission); });
+  }
+
   function initAll() {
+    migrate();
     $('#unitName').value = state.unitName || '';
     renderFleet();
     bindMissionFields();
