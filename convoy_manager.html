@@ -467,8 +467,10 @@
   <!-- ============ REPORT ============ -->
   <section class="pane" id="pane-report">
     <div class="report-actions">
-      <button class="btn primary" id="printBtn">🖨 הדפסה / שמירה כ־PDF</button>
-      <button class="btn" id="downloadReportBtn">⬇ הורדת קובץ הדוח</button>
+      <button class="btn primary" id="pdfBtn">📄 הורדת PDF</button>
+      <button class="btn primary" id="shareBtn">📤 שיתוף / וואטסאפ</button>
+      <button class="btn" id="printBtn">🖨 הדפסה</button>
+      <button class="btn" id="copyTextBtn">📋 העתקה כטקסט</button>
       <button class="btn" id="backToPrep">→ חזרה לעריכה</button>
       <button class="btn" id="saveToArchive2">שמור לארכיון</button>
     </div>
@@ -1112,17 +1114,23 @@
       '</body></html>';
   }
 
-  function downloadReport(showToast) {
-    var m = state.mission;
-    var html = buildReportDoc(false);
-    var blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+  function downloadBlob(blob, name) {
     var a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    a.download = 'convoy-order' + (m.date ? '-' + m.date : '') + '.html';
+    a.download = name;
     document.body.appendChild(a);
     a.click();
     a.remove();
-    setTimeout(function () { URL.revokeObjectURL(a.href); }, 5000);
+    setTimeout(function () { URL.revokeObjectURL(a.href); }, 8000);
+  }
+
+  function reportFileName(ext) {
+    return 'convoy-order' + (state.mission.date ? '-' + state.mission.date : '') + '.' + ext;
+  }
+
+  function downloadReport(showToast) {
+    var blob = new Blob([buildReportDoc(false)], { type: 'text/html;charset=utf-8' });
+    downloadBlob(blob, reportFileName('html'));
     if (showToast !== false) toast('קובץ הדוח ירד — פתחו אותו ולחצו "הדפסה" לשמירת PDF');
   }
 
@@ -1140,10 +1148,216 @@
     }
   }
 
+  /* --- Real in-browser PDF generation: report → SVG snapshot → canvas →
+         JPEG pages wrapped in a hand-built PDF. No print dialog needed. --- */
+  function renderReportCanvas(done, fail) {
+    var fr = document.createElement('iframe');
+    fr.style.cssText = 'position:fixed;left:-9999px;top:0;width:794px;height:120px;border:0';
+    document.body.appendChild(fr);
+    var cleaned = false;
+    function cleanup() { if (!cleaned) { cleaned = true; fr.remove(); } }
+    try {
+      renderReport();
+      var fd = fr.contentDocument;
+      fd.open();
+      fd.write('<!doctype html><html dir="rtl" lang="he"><head><meta charset="utf-8"><style>' + REPORT_CSS + '</style></head>' +
+        '<body style="margin:0;background:#fff"><style>' + REPORT_CSS + '</style>' +
+        '<div class="sheet" style="max-width:none;margin:0;border:none;direction:rtl;font-family:&quot;Segoe UI&quot;,Arial,sans-serif;color:#000;font-size:14px;line-height:1.5">' +
+        $('#reportSheet').innerHTML + '</div></body></html>');
+      fd.close();
+    } catch (e) { cleanup(); return fail(); }
+    setTimeout(function () {
+      try {
+        var fd2 = fr.contentDocument;
+        var h = Math.max(fd2.body.scrollHeight, 300);
+        var xml = new XMLSerializer().serializeToString(fd2.body);
+        xml = xml.replace(/^<body/, '<div').replace(/<\/body>$/, '</div>');
+        var svg = '<svg xmlns="http://www.w3.org/2000/svg" width="794" height="' + h + '">' +
+          '<foreignObject width="100%" height="100%">' + xml + '</foreignObject></svg>';
+        var img = new Image();
+        img.onload = function () {
+          try {
+            var scale = 2;
+            var canvas = document.createElement('canvas');
+            canvas.width = 794 * scale; canvas.height = h * scale;
+            var ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.scale(scale, scale);
+            ctx.drawImage(img, 0, 0);
+            cleanup();
+            var d = ctx.getImageData(0, 0, canvas.width, Math.min(canvas.height, 600)).data;
+            var ink = false;
+            for (var i = 0; i < d.length; i += 32) { if (d[i] < 200) { ink = true; break; } }
+            if (!ink) return fail();
+            done(canvas);
+          } catch (e) { cleanup(); fail(); }
+        };
+        img.onerror = function () { cleanup(); fail(); };
+        img.src = 'data:image/svg+xml;charset=utf-8,' + encodeURIComponent(svg);
+      } catch (e) { cleanup(); fail(); }
+    }, 150);
+  }
+
+  function b64ToBytes(b64) {
+    var bin = atob(b64), arr = new Uint8Array(bin.length);
+    for (var i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+    return arr;
+  }
+
+  function canvasToPdf(canvas) {
+    var W = 595.28, H = 841.89;
+    var pageWpx = canvas.width;
+    var pageHpx = Math.round(pageWpx * H / W);
+    var n = Math.max(1, Math.ceil(canvas.height / pageHpx));
+    var jpegs = [];
+    for (var p = 0; p < n; p++) {
+      var c = document.createElement('canvas');
+      c.width = pageWpx; c.height = pageHpx;
+      var cx = c.getContext('2d');
+      cx.fillStyle = '#fff'; cx.fillRect(0, 0, c.width, c.height);
+      cx.drawImage(canvas, 0, -p * pageHpx);
+      jpegs.push(b64ToBytes(c.toDataURL('image/jpeg', 0.9).split(',')[1]));
+    }
+    var enc = new TextEncoder();
+    var parts = [], offsets = [], pos = 0;
+    function push(x) { var b = typeof x === 'string' ? enc.encode(x) : x; parts.push(b); pos += b.length; }
+    function obj(num, body) { offsets[num] = pos; push(num + ' 0 obj\n' + body + '\nendobj\n'); }
+    push('%PDF-1.4\n');
+    obj(1, '<< /Type /Catalog /Pages 2 0 R >>');
+    var kids = [];
+    for (var i = 0; i < n; i++) kids.push((3 + 3 * i) + ' 0 R');
+    obj(2, '<< /Type /Pages /Kids [' + kids.join(' ') + '] /Count ' + n + ' >>');
+    for (var i = 0; i < n; i++) {
+      var pn = 3 + 3 * i, cn = 4 + 3 * i, xn = 5 + 3 * i;
+      obj(pn, '<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ' + W + ' ' + H + '] /Resources << /XObject << /Im' + i + ' ' + xn + ' 0 R >> >> /Contents ' + cn + ' 0 R >>');
+      var stream = 'q ' + W + ' 0 0 ' + H + ' 0 0 cm /Im' + i + ' Do Q';
+      obj(cn, '<< /Length ' + stream.length + ' >>\nstream\n' + stream + '\nendstream');
+      offsets[xn] = pos;
+      push(xn + ' 0 obj\n<< /Type /XObject /Subtype /Image /Width ' + pageWpx + ' /Height ' + pageHpx + ' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length ' + jpegs[i].length + ' >>\nstream\n');
+      push(jpegs[i]);
+      push('\nendstream\nendobj\n');
+    }
+    var total = 3 + 3 * n;
+    var xrefPos = pos;
+    var xref = 'xref\n0 ' + total + '\n0000000000 65535 f \n';
+    for (var j = 1; j < total; j++) {
+      var off = '0000000000' + offsets[j];
+      xref += off.slice(-10) + ' 00000 n \n';
+    }
+    push(xref + 'trailer\n<< /Size ' + total + ' /Root 1 0 R >>\nstartxref\n' + xrefPos + '\n%%EOF');
+    var len = 0;
+    parts.forEach(function (b) { len += b.length; });
+    var out = new Uint8Array(len), o = 0;
+    parts.forEach(function (b) { out.set(b, o); o += b.length; });
+    return out;
+  }
+
+  function exportPdf() {
+    toast('מכין PDF...');
+    renderReportCanvas(function (canvas) {
+      try {
+        var blob = new Blob([canvasToPdf(canvas)], { type: 'application/pdf' });
+        downloadBlob(blob, reportFileName('pdf'));
+        toast('קובץ ה־PDF ירד');
+      } catch (e) {
+        downloadReport(false);
+        toast('לא ניתן לייצר PDF בדפדפן זה — ירד קובץ HTML להדפסה במקום');
+      }
+    }, function () {
+      downloadReport(false);
+      toast('לא ניתן לייצר PDF בדפדפן זה — ירד קובץ HTML להדפסה במקום');
+    });
+  }
+
+  /* --- Plain-text version for WhatsApp --- */
+  function reportAsText() {
+    var m = state.mission, t = computeTotals();
+    var L = [];
+    L.push('🚛 *פקודת שיירה — ' + (m.title || 'ללא כותרת') + '*');
+    var l2 = [];
+    if (m.date) l2.push('📅 ' + fmtDate(m.date));
+    if (m.depart) l2.push('🕗 יציאה ' + m.depart);
+    if (m.ret) l2.push('חזרה ' + m.ret);
+    if (l2.length) L.push(l2.join(' | '));
+    if (m.commander) L.push('👤 מפקד המשימה: ' + m.commander);
+    if (m.route) L.push('🛣 ציר: ' + m.route);
+    var l3 = [];
+    if (m.freq) l3.push('📻 תדר ' + m.freq);
+    if (m.callsign) l3.push('אות קריאה: ' + m.callsign);
+    if (m.gap) l3.push('מרווח ' + m.gap + ' מ\'');
+    if (l3.length) L.push(l3.join(' | '));
+    if (m.notes) L.push('📝 ' + m.notes);
+    L.push('');
+    L.push('*סדר נסיעה:*');
+    m.vehicles.forEach(function (mv, i) {
+      var v = fleetById(mv.fleetId); if (!v) return;
+      var role = i === 0 ? ' — ראש שיירה' : (i === m.vehicles.length - 1 && m.vehicles.length > 1 ? ' — מאסף' : '');
+      L.push((i + 1) + '. *' + v.type + '* צ\'-' + v.tz + role);
+      var d = [];
+      if (mv.driver) d.push('נהג: ' + mv.driver);
+      if (mv.vcommander) d.push('מפקד רכב: ' + mv.vcommander);
+      if (mv.personnel) d.push(mv.personnel + ' נוסעים');
+      if (v.tanker && mv.fuel) d.push('סולר: ' + mv.fuel.toLocaleString() + ' ל\'');
+      if (d.length) L.push('   ' + d.join(' | '));
+      (mv.slots || []).forEach(function (s, si) {
+        if (!s.owner && !s.content) return;
+        var side = v.dolevCap > 1 ? (si % 2 === 0 ? ' ימין' : ' שמאל') : '';
+        L.push('   🔹 דולב ' + (si + 1) + side + ': ' + [s.owner, s.content].filter(Boolean).join(' — '));
+      });
+      if (mv.cargo) L.push('   📦 לא בדולב: ' + mv.cargo.replace(/\n+/g, ', '));
+    });
+    L.push('');
+    var sum = ['סה"כ: ' + t.vehicles + ' רכבים', t.personnel + ' אנשים'];
+    if (t.dolev) sum.push(t.dolev + ' דולבים');
+    if (t.fuel) sum.push(t.fuel.toLocaleString() + ' ל\' סולר');
+    L.push(sum.join(' | '));
+    var done = m.checklist.filter(function (c) { return c.done; }).map(function (c) { return c.text; });
+    if (done.length) L.push('✅ בוצע: ' + done.join(', '));
+    return L.join('\n');
+  }
+
+  function copyText() {
+    var txt = reportAsText();
+    function fallback() {
+      var ta = document.createElement('textarea');
+      ta.value = txt;
+      ta.style.cssText = 'position:fixed;opacity:0';
+      document.body.appendChild(ta);
+      ta.select();
+      try {
+        document.execCommand('copy');
+        toast('הטקסט הועתק — הדביקו בוואטסאפ');
+      } catch (e) { toast('ההעתקה נחסמה בדפדפן זה'); }
+      ta.remove();
+    }
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(txt).then(function () {
+        toast('הטקסט הועתק — הדביקו בוואטסאפ');
+      }, fallback);
+    } else fallback();
+  }
+
+  function shareReport() {
+    if (!navigator.share) { copyText(); return; }
+    var shareText = function () {
+      navigator.share({ text: reportAsText() }).catch(function () {});
+    };
+    renderReportCanvas(function (canvas) {
+      try {
+        var f = new File([canvasToPdf(canvas)], reportFileName('pdf'), { type: 'application/pdf' });
+        if (navigator.canShare && navigator.canShare({ files: [f] })) {
+          navigator.share({ files: [f], title: state.mission.title || 'פקודת שיירה' }).catch(function () {});
+        } else shareText();
+      } catch (e) { shareText(); }
+    }, shareText);
+  }
+
   $('#goReport').addEventListener('click', function () { showTab('report'); });
   $('#backToPrep').addEventListener('click', function () { showTab('prep'); });
   $('#printBtn').addEventListener('click', smartPrint);
-  $('#downloadReportBtn').addEventListener('click', function () { downloadReport(); });
+  $('#pdfBtn').addEventListener('click', exportPdf);
+  $('#shareBtn').addEventListener('click', shareReport);
+  $('#copyTextBtn').addEventListener('click', copyText);
 
   /* ---------------- Archive ---------------- */
   function archiveCurrent() {
