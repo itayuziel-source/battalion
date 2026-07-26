@@ -1,12 +1,12 @@
 -- ============================================================
--- הקמת מערכת ניהול תחמושת גדודית — מריצים פעם אחת ב-SQL Editor
--- קוד הגישה הגדודי מוגדר בפונקציה has_code (שורה ~35) — אפשר לשנות
--- אותו בכל עת ע"י עריכת הערך והרצת הפונקציה מחדש.
+-- Battalion ammunition management - one-time setup.
+-- Access code is defined in has_code() below ('gdud2026').
+-- To change it later: edit the value and re-run that block only.
 -- ============================================================
 
 create extension if not exists pgcrypto;
 
--- -------- טבלאות --------
+-- -------- tables --------
 create table if not exists public.items (
   name text primary key,
   cat  text not null default 'אחר',
@@ -32,9 +32,7 @@ create table if not exists public.tx (
   ts       timestamptz not null default now()
 );
 
--- -------- קוד גישה גדודי --------
--- כל בקשה מהאפליקציה נושאת כותרת x-code; בלעדיה אין קריאה ואין כתיבה.
--- לשינוי הקוד: החליפו את 'gdud2026' והריצו שוב את הבלוק הזה בלבד.
+-- -------- access code (checked on every request via x-code header) --------
 create or replace function public.has_code() returns boolean
 language sql stable as
 $$ select coalesce(current_setting('request.headers', true)::json->>'x-code','') = 'gdud2026' $$;
@@ -59,7 +57,7 @@ create policy tx_code on public.tx
   for all to anon, authenticated
   using (public.has_code()) with check (public.has_code());
 
--- -------- רשימת פריטים --------
+-- -------- item list --------
 insert into public.items (name, cat, ord) values
   ('פצמ"ר 120 נפיץ',   'פצצות מרגמה 120', 1),
   ('פצמ"ר 120 עשן',    'פצצות מרגמה 120', 2),
@@ -84,7 +82,7 @@ insert into public.items (name, cat, ord) values
   ('ליאה',             'תחמושת קלה',      21)
 on conflict (name) do nothing;
 
--- -------- פלוגות ומיקומים --------
+-- -------- companies and locations --------
 insert into public.companies (name, locs) values
   ('א',          '["חניתה"]'),
   ('ב',          '["מגדל זון","טיר חרפא"]'),
@@ -95,8 +93,7 @@ insert into public.companies (name, locs) values
   ('שריון',      '["טיר חרפא","מגדל זון"]')
 on conflict (name) do nothing;
 
--- -------- יתרות פתיחה מקובץ המקור --------
--- מוזן רק אם היומן ריק, כדי שהרצה חוזרת של הסקריפט לא תכפיל נתונים.
+-- -------- opening balances (inserted only if the log is empty) --------
 insert into public.tx (type, item, qty, date, source, person, notes)
 select * from (values
   ('חתימת מלאי', 'פצמ"ר 120 נפיץ',  192,    null::date,          'בילו',       '',            'יתרת פתיחה מקובץ המקור'),
@@ -124,12 +121,12 @@ select * from (values
 ) as seed(type, item, qty, date, source, person, notes)
 where not exists (select 1 from public.tx);
 
--- -------- אחסון האפליקציה (bucket ציבורי לקובץ index.html) --------
+-- -------- public storage bucket for hosting the app file --------
 insert into storage.buckets (id, name, public)
 values ('app', 'app', true)
 on conflict (id) do nothing;
 
--- -------- בדיקה עצמית --------
+-- -------- self check: expect items=21, companies=7, tx=22, total_signed=478586 --------
 select
   (select count(*) from public.items)     as items,
   (select count(*) from public.companies) as companies,
