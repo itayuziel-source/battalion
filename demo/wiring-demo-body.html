@@ -1,0 +1,891 @@
+<title>ניהול חיווטים וארונות — דמו</title>
+<style>
+  :root {
+    --bg: #f4f6f9;
+    --surface: #ffffff;
+    --surface2: #eef1f6;
+    --ink: #1a2432;
+    --ink2: #5b6675;
+    --line: #d8dee8;
+    --accent: #1f55c4;
+    --accent-ink: #ffffff;
+    --good: #178a50;
+    --good-bg: #e2f4ea;
+    --warn: #c46a00;
+    --warn-bg: #fdeed8;
+    --crit: #c22f3d;
+    --crit-bg: #fbe5e7;
+    --wait: #1f6fc4;
+    --wait-bg: #e2eefa;
+    --none: #6b7686;
+    --none-bg: #eceff4;
+    --banner: #f2b705;
+    --banner-ink: #4a3700;
+    --shadow: 0 1px 3px rgba(26, 36, 50, 0.08);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #12161d;
+      --surface: #1b212b;
+      --surface2: #232b37;
+      --ink: #e8ecf2;
+      --ink2: #98a3b3;
+      --line: #323c4b;
+      --accent: #5d8ae8;
+      --accent-ink: #0d1420;
+      --good: #4cc084;
+      --good-bg: #17342697;
+      --warn: #e9a13b;
+      --warn-bg: #3a2c1489;
+      --crit: #e56571;
+      --crit-bg: #3d1d2183;
+      --wait: #62a4e6;
+      --wait-bg: #1a2c4093;
+      --none: #8b96a6;
+      --none-bg: #262e3a;
+      --banner: #b28900;
+      --banner-ink: #fff3cd;
+      --shadow: 0 1px 3px rgba(0, 0, 0, 0.4);
+    }
+  }
+  :root[data-theme="light"] {
+    --bg: #f4f6f9; --surface: #ffffff; --surface2: #eef1f6; --ink: #1a2432; --ink2: #5b6675;
+    --line: #d8dee8; --accent: #1f55c4; --accent-ink: #ffffff;
+    --good: #178a50; --good-bg: #e2f4ea; --warn: #c46a00; --warn-bg: #fdeed8;
+    --crit: #c22f3d; --crit-bg: #fbe5e7; --wait: #1f6fc4; --wait-bg: #e2eefa;
+    --none: #6b7686; --none-bg: #eceff4; --banner: #f2b705; --banner-ink: #4a3700;
+    --shadow: 0 1px 3px rgba(26,36,50,.08);
+  }
+  :root[data-theme="dark"] {
+    --bg: #12161d; --surface: #1b212b; --surface2: #232b37; --ink: #e8ecf2; --ink2: #98a3b3;
+    --line: #323c4b; --accent: #5d8ae8; --accent-ink: #0d1420;
+    --good: #4cc084; --good-bg: #17342697; --warn: #e9a13b; --warn-bg: #3a2c1489;
+    --crit: #e56571; --crit-bg: #3d1d2183; --wait: #62a4e6; --wait-bg: #1a2c4093;
+    --none: #8b96a6; --none-bg: #262e3a; --banner: #b28900; --banner-ink: #fff3cd;
+    --shadow: 0 1px 3px rgba(0,0,0,.4);
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: "Segoe UI", -apple-system, Arial, "Noto Sans Hebrew", sans-serif;
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  .num, .ltr { direction: ltr; unicode-bidi: isolate; font-variant-numeric: tabular-nums; }
+  .term { font-family: Consolas, Menlo, monospace; font-size: .92em; }
+
+  .banner {
+    background: var(--banner); color: var(--banner-ink);
+    text-align: center; font-size: 12px; font-weight: 700; padding: 4px 10px;
+  }
+  header.bar {
+    position: sticky; top: 0; z-index: 20;
+    background: var(--surface); border-bottom: 1px solid var(--line); box-shadow: var(--shadow);
+  }
+  .bar-inner {
+    max-width: 1080px; margin: 0 auto; padding: 10px 16px;
+    display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+  }
+  .brand { font-size: 17px; font-weight: 800; color: var(--accent); white-space: nowrap; }
+  .brand small { color: var(--ink2); font-weight: 400; }
+  .spacer { flex: 1; }
+  nav.tabs {
+    max-width: 1080px; margin: 0 auto; padding: 0 10px;
+    display: flex; gap: 2px; overflow-x: auto;
+  }
+  nav.tabs a {
+    padding: 9px 13px; text-decoration: none; color: var(--ink2);
+    font-weight: 600; font-size: 14px; border-bottom: 3px solid transparent; white-space: nowrap;
+  }
+  nav.tabs a.on { color: var(--accent); border-bottom-color: var(--accent); }
+  nav.tabs a:focus-visible, button:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible {
+    outline: 2px solid var(--accent); outline-offset: 1px;
+  }
+
+  main { max-width: 1080px; margin: 0 auto; padding: 18px 16px 60px; }
+  h1 { font-size: 21px; margin: 0 0 14px; }
+  h2 { font-size: 16px; margin: 0 0 10px; }
+  .sub { color: var(--ink2); font-size: 13px; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--line);
+    border-radius: 10px; padding: 14px 16px; box-shadow: var(--shadow);
+  }
+  .grid { display: grid; gap: 12px; }
+  .g2 { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
+  .g3 { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
+  .stats { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .stat { text-align: center; padding: 12px 8px; }
+  .stat b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; }
+  .stat span { font-size: 12.5px; color: var(--ink2); }
+
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 99px;
+    font-size: 12px; font-weight: 700; white-space: nowrap;
+  }
+  .st-done { background: var(--good-bg); color: var(--good); }
+  .st-prog { background: var(--warn-bg); color: var(--warn); }
+  .st-wait { background: var(--wait-bg); color: var(--wait); }
+  .st-issue { background: var(--crit-bg); color: var(--crit); }
+  .st-none { background: var(--none-bg); color: var(--none); }
+
+  .meter { height: 9px; background: var(--none-bg); border-radius: 99px; overflow: hidden; }
+  .meter i { display: block; height: 100%; border-radius: 99px; background: var(--warn); }
+  .meter i.full { background: var(--good); }
+
+  button, .btn {
+    font: inherit; cursor: pointer; border-radius: 8px; border: 1px solid var(--line);
+    background: var(--surface); color: var(--ink); padding: 9px 14px; font-weight: 600;
+    text-decoration: none; display: inline-block;
+  }
+  button.pri, .btn.pri { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+  button.big { padding: 12px 18px; font-size: 16px; }
+  button:disabled { opacity: .5; cursor: not-allowed; }
+  button.link { border: 0; background: none; color: var(--accent); padding: 2px 4px; }
+  input, select, textarea {
+    font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--line); border-radius: 8px; padding: 8px 10px;
+  }
+
+  ul.plain { list-style: none; margin: 0; padding: 0; }
+  ul.plain li { padding: 8px 0; border-bottom: 1px solid var(--line); font-size: 14px; }
+  ul.plain li:last-child { border-bottom: 0; }
+  .row { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+  .mt { margin-top: 12px; } .mb { margin-bottom: 12px; }
+
+  .wire {
+    display: flex; align-items: center; gap: 12px;
+    padding: 12px; border: 1px solid var(--line); border-radius: 10px;
+    background: var(--surface); margin-bottom: 8px;
+  }
+  .wire.done { background: var(--good-bg); border-color: var(--good); }
+  .wire input[type=checkbox] { width: 30px; height: 30px; accent-color: var(--good); flex-shrink: 0; }
+  .wire .term-box {
+    background: var(--surface2); border-radius: 6px; padding: 2px 8px; font-weight: 600;
+  }
+  .wire.done .term-box { background: rgba(255,255,255,.5); }
+
+  table { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+  th { text-align: right; color: var(--ink2); font-size: 12px; padding: 6px 8px; border-bottom: 2px solid var(--line); }
+  td { padding: 5px 8px; border-bottom: 1px solid var(--line); }
+  tr.bad { background: var(--crit-bg); }
+  td input { width: 100%; min-width: 55px; padding: 4px 6px; font-size: 13px; }
+  .scroll { overflow-x: auto; }
+
+  .toast {
+    position: fixed; bottom: 18px; right: 50%; transform: translateX(50%);
+    background: var(--good); color: #fff; padding: 10px 18px; border-radius: 8px;
+    font-weight: 700; z-index: 99; box-shadow: 0 4px 14px rgba(0,0,0,.25);
+  }
+  .toast.err { background: var(--crit); }
+
+  .labels { display: grid; gap: 8px; }
+  .labels.s { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .labels.m { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); }
+  .labels.l { grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); }
+  .label {
+    border: 2px solid var(--ink); border-radius: 6px; padding: 8px; background: var(--surface);
+    break-inside: avoid; font-size: 13px;
+  }
+  .label .top { display: flex; justify-content: space-between; font-weight: 800; border-bottom: 1px solid var(--line); padding-bottom: 4px; margin-bottom: 6px; }
+  .label .pts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .label .pts span { display: block; color: var(--ink2); font-size: 11px; }
+  .label .pts b { display: block; }
+
+  .login-wrap { max-width: 460px; margin: 30px auto; }
+  .user-btn {
+    display: flex; justify-content: space-between; align-items: center; width: 100%;
+    text-align: right; margin-bottom: 8px; padding: 13px 16px;
+  }
+  .user-btn:hover { border-color: var(--accent); }
+  .user-btn .role { color: var(--ink2); font-size: 12.5px; font-weight: 400; }
+
+  .notif-dot {
+    background: var(--crit); color: #fff; border-radius: 99px; font-size: 11px;
+    padding: 0 6px; font-weight: 700; margin-inline-start: 4px;
+  }
+  .dev-card.open { border-inline-start: 4px solid var(--crit); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .toast { animation: pop .18s ease-out; }
+    @keyframes pop { from { opacity: 0; transform: translateX(50%) translateY(8px); } }
+  }
+  @media print {
+    .no-print, .banner, header.bar, nav.tabs { display: none !important; }
+    body { background: #fff; }
+    main { max-width: none; padding: 0; }
+    .label { border-color: #000; }
+  }
+</style>
+
+<div class="banner">סביבת הדגמה — כל הנתונים מדומים ונשמרים בדפדפן זה בלבד</div>
+<header class="bar no-print" id="topbar" hidden>
+  <div class="bar-inner">
+    <span class="brand">⚡ ניהול חיווטים וארונות <small>· דמו</small></span>
+    <span class="spacer"></span>
+    <button class="link" onclick="App.showNotifs()">🔔 התראות<span id="nBadge"></span></button>
+    <span class="sub" id="whoami"></span>
+    <button onclick="App.logout()">החלפת משתמש</button>
+  </div>
+  <nav class="tabs" id="tabs"></nav>
+</header>
+<main id="app"></main>
+
+<script>
+"use strict";
+document.documentElement.setAttribute("dir", "rtl");
+document.documentElement.setAttribute("lang", "he");
+
+/* ---------- נתונים ---------- */
+const KEY = "wiring_demo_v2";
+const ROLES = { worker: "עובד", inspector: "בודקת", manager: "מנהל" };
+const ST = { none: "טרם התחיל", prog: "בביצוע", wait: "ממתין לבדיקה", done: "הושלם", issue: "חריגה" };
+
+let S = null; // state
+
+function seed() {
+  const users = [
+    { id: 1, name: "יוסי לוי", no: "1001", role: "worker" },
+    { id: 2, name: "דוד כהן", no: "1002", role: "worker" },
+    { id: 3, name: "משה פרץ", no: "1003", role: "worker" },
+    { id: 4, name: "רונית אברהם", no: "2001", role: "inspector" },
+    { id: 5, name: "אבי מזרחי", no: "3001", role: "manager" },
+  ];
+  const cabinets = [
+    { id: 1, no: "+A1", name: "ארון פיקוד ראשי", loc: "חדר פיקוד — קומה 0", assignee: 1, notes: "ארון צפוף — לשים לב לתיעול הגידים" },
+    { id: 2, no: "+A2", name: "ארון הגנות קו 1", loc: "אולם מסדרים — מזרח", assignee: 2, notes: "" },
+    { id: 3, no: "+A3", name: "ארון מדידה", loc: "אולם מסדרים — מערב", assignee: 3, notes: "" },
+    { id: 4, no: "+A4", name: "ארון תקשורת ובקרה", loc: "חדר תקשורת — קומה 1", assignee: null, notes: "" },
+  ];
+  const cables = [];
+  const wires = [];
+  let cid = 0, wid = 0;
+  const D = "2026-07-";
+  function addCable(cabId, no, dst, type, desc, wireDefs, checked) {
+    const c = { id: ++cid, cabId, no, src: cabinets[cabId - 1].no, dst, type, desc, checked: !!checked, checkedBy: checked ? 4 : null, checkedAt: checked ? D + "18T10:30" : null, notes: "" };
+    cables.push(c);
+    wireDefs.forEach((wd, i) => {
+      wires.push({ id: ++wid, cableId: c.id, no: String(i + 1), srcT: wd[0], dstT: wd[1], desc: wd[2],
+        done: !!wd[3], doneBy: wd[3] ? wd[3] : null, doneAt: wd[3] ? D + (10 + (i % 9)) + "T11:00" : null, note: wd[4] || "" });
+    });
+    return c;
+  }
+  // +A1 — רובו הושלם ונבדק
+  addCable(1, "C-101", "+A2", "NYY 7x1.5", "מעגל פיקוד ראשי", [["X1:1","X1:1","הזנת פיקוד +",1],["X1:2","X1:2","הזנת פיקוד -",1],["X1:3","X1:3","אות תקלה",1],["X1:4","X1:4","אות מצב מפסק",1],["X1:5","X1:5","רזרבה",1]], true);
+  addCable(1, "C-102", "+A3", "LIYCY 4x0.75", "אותות מדידה", [["X2:1","X1:1","מדידת זרם L1",1],["X2:2","X1:2","מדידת זרם L2",1],["X2:3","X1:3","מדידת זרם L3",1],["X2:4","X1:4","נקודת אפס",1]], true);
+  addCable(1, "C-104", "+A2", "NYY 4x1.5", "הזנת מתח עזר 110VDC", [["X4:1","X2:1","110VDC +",1],["X4:2","X2:2","110VDC -",1],["X4:3","X2:3","הארקה",1]], false);
+  addCable(1, "C-105", "+A3", "NYY 4x1.5", "תאורת ארון וחימום", [["X5:1","X3:1","הזנת תאורה",3],["X5:2","X3:2","הזנת חימום",3],["X5:3","X3:3","אפס משותף",0]], false);
+  // +A2 — בביצוע + חריגה פתוחה
+  addCable(2, "C-201", "+A1", "NYY 7x1.5", "מעגלי הגנה ראשיים", [["X1:1","X6:1","הפעלת הגנה 1",2],["X1:2","X6:2","הפעלת הגנה 2",2],["X1:3","X6:3","אות חיווי",2],["X1:4","X6:4","רזרבה",2],["X1:5","X6:5","הארקת סיכוך",2]], false);
+  addCable(2, "C-202", "+A3", "LIYCY 7x0.75", "אותות מדידה להגנות", [["X2:1","X2:1","זרם הגנה L1",2],["X2:2","X2:2","זרם הגנה L2",2],["X2:3","X2:3","זרם הגנה L3",0],["X2:4","X2:4","מתח ייחוס",0]], false);
+  const c204 = addCable(2, "C-204", "+A1", "NYY 4x1.5", "מעגל השהיה", [["X4:1","X7:1","הזנה",2,"חובר למהדק X7:4 — אין מקום בפס"],["X4:2","X7:2","חזרה",0],["X4:3","X7:3","הארקה",0]], false);
+  addCable(2, "C-205", "+A3", "NYY 4x1.5", "הזנת שקעי שירות", [["X5:1","X4:1","פאזה",0],["X5:2","X4:2","אפס",0],["X5:3","X4:3","הארקה",0]], false);
+  // +A3 — התחלה
+  addCable(3, "C-301", "+A1", "LIYCY 4x0.75", "מדידת מתח ראשית", [["X1:1","X8:1","מתח L1",3],["X1:2","X8:2","מתח L2",3],["X1:3","X8:3","מתח L3",3],["X1:4","X8:4","אפס",3]], false);
+  const c302 = addCable(3, "C-302", "+A2", "LIYCY 7x0.75", "מונה אנרגיה", [["X2:1","X5:1","זרם מונה L1",3],["X2:2","X5:2","זרם מונה L2",3],["X2:3","X5:3","זרם מונה L3",0],["X2:4","X5:4","מתח מונה",0]], false);
+  addCable(3, "C-303", "+A4", "LIYCY 4x0.75", "שידור נתוני מדידה", [["X3:1","X2:1","RS485 A",0],["X3:2","X2:2","RS485 B",0],["X3:3","X2:3","סיכוך",0]], false);
+  addCable(3, "C-304", "+A1", "NYY 4x1.5", "מתח עזר למדידה", [["X4:1","X9:1","פאזה",0],["X4:2","X9:2","אפס",0],["X4:3","X9:3","הארקה",0]], false);
+  // +A4 — טרם התחיל
+  addCable(4, "C-401", "+A1", "LIYCY 12x0.75", "ריכוז התראות", [["X1:1","X10:1","התראה כללית",0],["X1:2","X10:2","התראת מתח",0],["X1:3","X10:3","התראת תקשורת",0],["X1:4","X10:4","רזרבה",0],["X1:5","X10:5","סיכוך",0]], false);
+  addCable(4, "C-402", "+A2", "LIYCY 4x0.75", "תקשורת להגנות", [["X2:1","X7:1","TX+",0],["X2:2","X7:2","TX-",0],["X2:3","X7:3","סיכוך",0]], false);
+  addCable(4, "C-403", "+A3", "LIYCY 4x0.75", "תקשורת למדידה", [["X3:1","X6:1","RS485 A",0],["X3:2","X6:2","RS485 B",0],["X3:3","X6:3","סיכוך",0]], false);
+
+  return {
+    user: null,
+    project: { name: "תחמ״ש לדוגמה", station: "תחנת משנה — אתר הדגמה", work: "W-2026-0142", manager: "אבי מזרחי" },
+    users, cabinets, cables, wires,
+    nextId: { cable: cid, wire: wid, cabinet: 4, dev: 3, set: 2 },
+    deviations: [
+      { id: 1, cabId: 2, cableId: c204.id, desc: "גיד 1 של כבל C-204 חובר למהדק X7:4 במקום X7:1", reason: "פס המהדקים מלא", by: 2, at: D + "20T09:15", status: "open", resp: "", respBy: null, respAt: null },
+      { id: 2, cabId: 3, cableId: c302.id, desc: "הוחלף פס מהדקים X2 לפס רחב יותר", reason: "הפס המקורי לא התאים לחתך", by: 3, at: D + "18T13:40", status: "approved", resp: "מאושר. לעדכן בתוכנית As-Made.", respBy: 5, respAt: D + "19T08:00" },
+    ],
+    activity: [
+      { by: 4, action: "אישור בדיקת כבל", label: "C-101", at: D + "18T10:30" },
+      { by: 4, action: "אישור בדיקת כבל", label: "C-102", at: D + "18T10:45" },
+      { by: 2, action: "דיווח חריגה", label: "C-204", at: D + "20T09:15" },
+      { by: 5, action: "אישור חריגה", label: "פס מהדקים X2 — ‎+A3", at: D + "19T08:00" },
+      { by: 2, action: "סימון גיד כהושלם", label: "C-201 גיד 5", at: D + "19T14:20" },
+    ],
+    notifs: [
+      { msg: "כבל C-104 ממתין לבדיקה", at: D + "16T14:05", read: false },
+      { msg: "נפתחה חריגה חדשה בארון ‎+A2 (כבל C-204)", at: D + "20T09:15", read: false },
+      { msg: "ארון ‎+A4 לא עודכן מעל 7 ימים", at: D + "24T07:00", read: false },
+    ],
+    sets: [{ id: 1, name: "סט חיווט 01", files: ["demo_wiring_plan_A1.pdf", "demo_wiring_plan_A2_A3.pdf"], status: "approved", rows: [] }],
+  };
+}
+
+function load() { try { const raw = localStorage.getItem(KEY); if (raw) return JSON.parse(raw); } catch (e) {} return null; }
+function save() { localStorage.setItem(KEY, JSON.stringify(S)); }
+S = load() || seed(); save();
+
+/* ---------- חישובים (אותם כללים כמו במערכת המלאה) ---------- */
+const userById = (id) => S.users.find((u) => u.id === id);
+const uname = (id) => (userById(id) || {}).name || "—";
+const cableWires = (cid) => S.wires.filter((w) => w.cableId === cid);
+const cabCables = (cabId) => S.cables.filter((c) => c.cabId === cabId);
+const openDevCable = (cid) => S.deviations.some((d) => d.cableId === cid && (d.status === "open" || d.status === "in_review"));
+const openDevCab = (cabId) => S.deviations.filter((d) => d.cabId === cabId && (d.status === "open" || d.status === "in_review")).length;
+
+function cableStatus(c) {
+  if (openDevCable(c.id)) return "issue";
+  const ws = cableWires(c.id);
+  const done = ws.filter((w) => w.done).length;
+  if (!ws.length || done === 0) return "none";
+  if (done < ws.length) return "prog";
+  return c.checked ? "done" : "wait"; // כבל מושלם רק אחרי שכל הגידים הושלמו ונבדק
+}
+function cabinetInfo(cab) {
+  const cs = cabCables(cab.id);
+  const done = cs.filter((c) => cableStatus(c) === "done").length;
+  const pct = cs.length ? Math.round((done / cs.length) * 100) : 0;
+  let st;
+  if (openDevCab(cab.id)) st = "issue";
+  else if (!cs.length) st = "none";
+  else if (cs.every((c) => cableStatus(c) === "done")) st = "done";
+  else if (cs.every((c) => ["done", "wait"].includes(cableStatus(c)))) st = "wait";
+  else if (cs.every((c) => cableStatus(c) === "none")) st = "none";
+  else st = "prog";
+  return { done, total: cs.length, pct, st };
+}
+function projectPct() {
+  let tot = 0, w = 0;
+  S.cabinets.forEach((cab) => { const i = cabinetInfo(cab); tot += i.total; w += i.pct * i.total; });
+  return tot ? Math.round(w / tot) : 0;
+}
+const canVerify = () => S.user && (S.user.role === "inspector" || S.user.role === "manager");
+const isManager = () => S.user && S.user.role === "manager";
+
+function log(action, label) {
+  S.activity.unshift({ by: S.user.id, action, label, at: new Date().toISOString().slice(0, 16) });
+}
+function notify(msg) { S.notifs.unshift({ msg, at: new Date().toISOString().slice(0, 16), read: false }); }
+function fmt(iso) {
+  if (!iso) return "—";
+  const d = new Date(iso);
+  return d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" }) + " " +
+         d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+}
+const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
+const pill = (st) => `<span class="pill st-${st}">${ST[st]}</span>`;
+const meter = (pct) => `<div class="meter"><i class="${pct >= 100 ? "full" : ""}" style="width:${pct}%"></i></div>`;
+
+let toastTimer = null;
+function toast(msg, err) {
+  document.querySelectorAll(".toast").forEach((t) => t.remove());
+  const el = document.createElement("div");
+  el.className = "toast" + (err ? " err" : "");
+  el.textContent = msg;
+  document.body.appendChild(el);
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.remove(), 3200);
+}
+
+/* ---------- ניתוב ---------- */
+const TABS = [
+  ["#/", "לוח בקרה"], ["#/cabinets", "ארונות"], ["#/mapping", "סט חיווט"],
+  ["#/deviations", "חריגות"], ["#/print", "פתקי חיווט"],
+];
+function render() {
+  const hash = location.hash || "#/";
+  const app = document.getElementById("app");
+  const topbar = document.getElementById("topbar");
+  if (!S.user) { topbar.hidden = true; app.innerHTML = Login(); return; }
+  topbar.hidden = false;
+  document.getElementById("whoami").innerHTML = `<b>${esc(S.user.name)}</b> · ${ROLES[S.user.role]}`;
+  const unread = S.notifs.filter((n) => !n.read).length;
+  document.getElementById("nBadge").innerHTML = unread ? `<span class="notif-dot">${unread}</span>` : "";
+  document.getElementById("tabs").innerHTML = TABS.map(
+    ([h, l]) => `<a href="${h}" class="${hash === h || (h !== "#/" && hash.startsWith(h)) ? "on" : ""}">${l}</a>`
+  ).join("");
+
+  if (hash.startsWith("#/cabinet/")) app.innerHTML = Cabinet(+hash.split("/")[2]);
+  else if (hash.startsWith("#/cable/")) app.innerHTML = Cable(+hash.split("/")[2]);
+  else if (hash.startsWith("#/cabinets")) app.innerHTML = Cabinets();
+  else if (hash.startsWith("#/mapping")) app.innerHTML = Mapping();
+  else if (hash.startsWith("#/deviations")) app.innerHTML = Deviations();
+  else if (hash.startsWith("#/print")) app.innerHTML = Print();
+  else if (hash.startsWith("#/notifs")) app.innerHTML = Notifs();
+  else app.innerHTML = Dash();
+  window.scrollTo(0, 0);
+}
+window.addEventListener("hashchange", render);
+
+/* ---------- מסכים ---------- */
+function Login() {
+  return `<div class="login-wrap">
+    <div style="text-align:center; margin-bottom:16px">
+      <div style="font-size:44px">⚡</div>
+      <h1 style="color:var(--accent)">ניהול חיווטים וארונות</h1>
+      <p class="sub">גרסת דמו בקובץ בודד — התחברות לצורכי הדגמה בלבד.<br>בחרו משתמש מרשימת עובדי הדוגמה:</p>
+    </div>
+    <div class="card">
+      ${S.users.map((u) => `
+        <button class="user-btn" onclick="App.login(${u.id})">
+          <span><b>${esc(u.name)}</b><br><span class="role">${ROLES[u.role]} · מס׳ עובד <span class="num">${u.no}</span></span></span>
+          <span style="color:var(--accent)">כניסה ←</span>
+        </button>`).join("")}
+    </div>
+    <p class="sub" style="text-align:center" class="mt">כל הנתונים מדומים · <button class="link" onclick="App.reset()">איפוס נתוני הדוגמה</button></p>
+  </div>`;
+}
+
+function Dash() {
+  const pct = projectPct();
+  const infos = S.cabinets.map((c) => ({ c, i: cabinetInfo(c) }));
+  const cablesAll = S.cables.length;
+  const cablesDone = S.cables.filter((c) => cableStatus(c) === "done").length;
+  const wiresOpen = S.wires.filter((w) => !w.done).length;
+  const waiting = S.cables.filter((c) => cableStatus(c) === "wait").length;
+  const openDevs = S.deviations.filter((d) => d.status === "open" || d.status === "in_review").length;
+  return `
+  <div class="card mb">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <h1 style="margin:0">${esc(S.project.name)}</h1>
+        <span class="sub">${esc(S.project.station)} · מס׳ עבודה <span class="num">${S.project.work}</span> · אחראי: ${esc(S.project.manager)}</span>
+      </div>
+      <a class="btn pri" href="#/mapping">⬆ העלאת סט חיווט</a>
+    </div>
+    <div class="row mt" style="justify-content:space-between"><b>התקדמות כללית</b><b class="num" style="color:var(--accent)">${pct}%</b></div>
+    ${meter(pct)}
+  </div>
+  <div class="stats mb">
+    <div class="card stat"><b style="color:var(--good)" class="num">${infos.filter((x) => x.i.st === "done").length}/${S.cabinets.length}</b><span>ארונות שהושלמו</span></div>
+    <div class="card stat"><b style="color:var(--warn)" class="num">${infos.filter((x) => x.i.st === "prog").length}</b><span>ארונות בביצוע</span></div>
+    <div class="card stat"><b style="color:var(--good)" class="num">${cablesDone}/${cablesAll}</b><span>כבלים שהושלמו</span></div>
+    <div class="card stat"><b style="color:var(--wait)" class="num">${wiresOpen}</b><span>גידים פתוחים</span></div>
+    <div class="card stat"><b style="color:${openDevs ? "var(--crit)" : "var(--ink2)"}" class="num">${openDevs}</b><span>חריגות פתוחות</span></div>
+    <div class="card stat"><b style="color:var(--wait)" class="num">${waiting}</b><span>ממתינים לבדיקה</span></div>
+  </div>
+  <div class="grid g2">
+    <div class="card">
+      <h2>🗄 מצב הארונות</h2>
+      ${infos.map(({ c, i }) => `
+        <a href="#/cabinet/${c.id}" style="text-decoration:none;color:inherit;display:block;padding:8px 0;border-bottom:1px solid var(--line)">
+          <div class="row" style="justify-content:space-between">
+            <b><span class="num">${c.no}</span> <span class="sub">${esc(c.name)}</span></b>
+            <span class="row">${pill(i.st)} <b class="num">${i.pct}%</b></span>
+          </div>
+          ${meter(i.pct)}
+        </a>`).join("")}
+    </div>
+    <div class="card">
+      <h2>🛠 עדכוני ביצוע אחרונים</h2>
+      <ul class="plain">${S.activity.slice(0, 8).map((a) => `
+        <li><b>${esc(uname(a.by))}</b> — ${esc(a.action)} <span class="sub">(${esc(a.label)})</span><br><span class="sub">${fmt(a.at)}</span></li>`).join("")}
+      </ul>
+    </div>
+  </div>`;
+}
+
+function Cabinets() {
+  return `<h1>🗄 ארונות</h1>
+  <div class="grid g3">
+    ${S.cabinets.map((cab) => {
+      const i = cabinetInfo(cab);
+      const devs = openDevCab(cab.id);
+      return `<a href="#/cabinet/${cab.id}" style="text-decoration:none;color:inherit">
+        <div class="card" style="height:100%">
+          <div class="row" style="justify-content:space-between">
+            <b style="font-size:18px" class="num">${cab.no}</b>${pill(i.st)}
+          </div>
+          <div class="sub mb">${esc(cab.name)}</div>
+          <div class="row" style="justify-content:space-between;font-size:12.5px">
+            <span>כבלים: <b class="num">${i.done}/${i.total}</b></span><b class="num">${i.pct}%</b>
+          </div>
+          ${meter(i.pct)}
+          <div class="sub mt">👷 ${cab.assignee ? esc(uname(cab.assignee)) : "לא שויך עובד"}</div>
+          ${devs ? `<div style="color:var(--crit);font-weight:700;font-size:13px">⚠ ${devs} חריגות פתוחות</div>` : ""}
+        </div></a>`;
+    }).join("")}
+  </div>`;
+}
+
+function Cabinet(id) {
+  const cab = S.cabinets.find((c) => c.id === id);
+  if (!cab) return "<p>ארון לא נמצא</p>";
+  const i = cabinetInfo(cab);
+  const cs = cabCables(cab.id);
+  const workers = [...new Set(S.wires.filter((w) => cs.some((c) => c.id === w.cableId) && w.doneBy).map((w) => w.doneBy))];
+  const acts = S.activity.filter((a) => cs.some((c) => a.label.startsWith(c.no)) || a.label.includes(cab.no)).slice(0, 10);
+  return `
+  <p class="sub no-print"><a href="#/cabinets">ארונות</a> / <b class="num">${cab.no}</b></p>
+  <div class="card mb">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <h1 style="margin:0"><span class="num">${cab.no}</span> ${pill(i.st)}</h1>
+        <div class="sub">${esc(cab.name)} · 📍 ${esc(cab.loc)} · 👷 ${cab.assignee ? esc(uname(cab.assignee)) : "לא שויך"}</div>
+      </div>
+      <div class="row no-print">
+        <button onclick="App.editNotes(${cab.id})">📝 הערות</button>
+        <button class="pri" onclick="App.reportDev(${cab.id})">⚠ דיווח חריגה</button>
+      </div>
+    </div>
+    <div class="row mt" style="justify-content:space-between"><span>כבלים שהושלמו: <b class="num">${i.done}/${i.total}</b></span><b class="num">${i.pct}%</b></div>
+    ${meter(i.pct)}
+    ${cab.notes ? `<p style="background:var(--warn-bg);border-radius:8px;padding:8px 12px;font-size:13.5px">📝 ${esc(cab.notes)}</p>` : ""}
+  </div>
+  <h2>🔌 כבלים (<span class="num">${cs.length}</span>)</h2>
+  <div class="grid g2 mb">
+    ${cs.map((c) => {
+      const ws = cableWires(c.id); const done = ws.filter((w) => w.done).length;
+      const st = cableStatus(c);
+      return `<a href="#/cable/${c.id}" style="text-decoration:none;color:inherit">
+        <div class="card">
+          <div class="row" style="justify-content:space-between"><b class="num">${c.no}</b>${pill(st)}</div>
+          <div class="sub"><span class="ltr">${c.src} → ${c.dst}</span> · <span class="ltr">${esc(c.type)}</span> · ${esc(c.desc)}</div>
+          <div class="row mt">${meter(ws.length ? Math.round(done / ws.length * 100) : 0)}<b class="num" style="font-size:12.5px">${done}/${ws.length} גידים</b></div>
+          ${c.checked ? `<div class="sub" style="color:var(--good)">✔ נבדק ע״י ${esc(uname(c.checkedBy))} · ${fmt(c.checkedAt)}</div>` : ""}
+        </div></a>`;
+    }).join("")}
+  </div>
+  <div class="grid g2">
+    <div class="card"><h2>👷 עובדים שביצעו עבודה</h2>
+      ${workers.length ? workers.map((w) => `<span class="pill st-wait">${esc(uname(w))}</span> `).join("") : '<span class="sub">טרם בוצעה עבודה</span>'}
+    </div>
+    <div class="card"><h2>🕓 היסטוריית פעולות</h2>
+      <ul class="plain">${acts.length ? acts.map((a) => `<li><b>${esc(uname(a.by))}</b> — ${esc(a.action)} <span class="sub">(${esc(a.label)}) · ${fmt(a.at)}</span></li>`).join("") : '<li class="sub">אין פעולות</li>'}</ul>
+    </div>
+  </div>`;
+}
+
+function Cable(id) {
+  const c = S.cables.find((x) => x.id === id);
+  if (!c) return "<p>כבל לא נמצא</p>";
+  const cab = S.cabinets.find((x) => x.id === c.cabId);
+  const ws = cableWires(c.id);
+  const done = ws.filter((w) => w.done).length;
+  const pct = ws.length ? Math.round(done / ws.length * 100) : 0;
+  const st = cableStatus(c);
+  return `
+  <p class="sub"><a href="#/cabinets">ארונות</a> / <a href="#/cabinet/${cab.id}">ארון <span class="num">${cab.no}</span></a> / <b class="num">${c.no}</b></p>
+  <div class="card mb">
+    <div class="row" style="justify-content:space-between">
+      <div>
+        <h1 style="margin:0"><span class="num">${c.no}</span> ${pill(st)}</h1>
+        <div class="sub"><span class="ltr">${c.src} → ${c.dst}</span> · <span class="ltr">${esc(c.type)}</span> · ${esc(c.desc)}</div>
+        ${c.checked ? `<div class="sub" style="color:var(--good)">✔ נבדק ואושר ע״י ${esc(uname(c.checkedBy))} · ${fmt(c.checkedAt)}</div>` : ""}
+      </div>
+      <div class="row">
+        <button onclick="App.reportDev(${cab.id}, ${c.id})">⚠ דיווח חריגה</button>
+        ${canVerify() && !c.checked && pct === 100 ? `<button class="pri" onclick="App.verify(${c.id})">🔍 אישור בדיקה סופית</button>` : ""}
+      </div>
+    </div>
+    <div class="row mt" style="justify-content:space-between"><span>גידים שהושלמו: <b class="num">${done}/${ws.length}</b></span><b class="num">${pct}%</b></div>
+    ${meter(pct)}
+    ${pct === 100 && !c.checked && !canVerify() ? `<p style="background:var(--wait-bg);border-radius:8px;padding:8px 12px;font-size:13.5px">ℹ כל הגידים הושלמו — הכבל ממתין לאישור של בודק או מנהל.</p>` : ""}
+  </div>
+  <div class="row mb">
+    <button class="big pri" ${done === ws.length ? "disabled" : ""} onclick="App.markAll(${c.id})">✔ סימון כל הגידים כהושלמו</button>
+    <span class="sub">כל סימון נשמר מיד עם שם העובד והתאריך</span>
+  </div>
+  ${ws.map((w) => `
+    <div class="wire ${w.done ? "done" : ""}">
+      <input type="checkbox" ${w.done ? "checked" : ""} onchange="App.toggleWire(${w.id})" aria-label="גיד ${w.no}">
+      <div style="flex:1;min-width:0">
+        <div class="row">
+          <b style="font-size:16px">גיד <span class="num">${w.no}</span></b>
+          <span class="term-box ltr term">${w.srcT} → ${w.dstT}</span>
+          ${w.note ? '<span class="pill st-issue">חריגה מהתוכנית</span>' : ""}
+        </div>
+        <div class="sub">${esc(w.desc)}${w.done ? ` · <span style="color:var(--good)">✔ חווט ע״י ${esc(uname(w.doneBy))} · ${fmt(w.doneAt)}</span>` : ""}</div>
+        ${w.note ? `<div class="sub" style="color:var(--crit)">📝 ${esc(w.note)}</div>` : ""}
+      </div>
+      <button onclick="App.wireNote(${w.id})">📝 הערה</button>
+    </div>`).join("")}`;
+}
+
+function Deviations() {
+  const list = [...S.deviations].sort((a, b) => (a.status === "open" ? -1 : 1) - (b.status === "open" ? -1 : 1));
+  const DL = { open: "פתוחה", in_review: "בבדיקה", approved: "אושרה", rejected: "נדחתה" };
+  const DC = { open: "issue", in_review: "prog", approved: "done", rejected: "none" };
+  return `<h1>⚠ שינויים וחריגות</h1>
+  ${list.map((d) => {
+    const cab = S.cabinets.find((c) => c.id === d.cabId);
+    const cable = S.cables.find((c) => c.id === d.cableId);
+    return `<div class="card mb dev-card ${d.status === "open" ? "open" : ""}">
+      <div class="row" style="justify-content:space-between">
+        <div>
+          <span class="pill st-${DC[d.status]}">${DL[d.status]}</span>
+          <a href="#/cabinet/${cab.id}"><b>ארון <span class="num">${cab.no}</span></b></a>
+          ${cable ? `· <a href="#/cable/${cable.id}">כבל <span class="num">${cable.no}</span></a>` : ""}
+          <p style="margin:6px 0 2px"><b>${esc(d.desc)}</b></p>
+          ${d.reason ? `<div class="sub">סיבה: ${esc(d.reason)}</div>` : ""}
+          <div class="sub">דווח ע״י ${esc(uname(d.by))} · ${fmt(d.at)}</div>
+          ${d.resp ? `<div style="background:var(--surface2);border-radius:8px;padding:6px 10px;margin-top:6px;font-size:13.5px"><b>תגובת מנהל:</b> ${esc(d.resp)} <span class="sub">(${esc(uname(d.respBy))} · ${fmt(d.respAt)})</span></div>` : ""}
+        </div>
+        ${isManager() && (d.status === "open" || d.status === "in_review") ? `<button class="pri" onclick="App.respondDev(${d.id})">💬 תגובה ואישור</button>` : ""}
+      </div>
+    </div>`;
+  }).join("") || '<p class="sub">אין חריגות</p>'}`;
+}
+
+function Print() {
+  const p = S.printOpts || (S.printOpts = { cabId: 0, cableId: 0, size: "m", copies: 1 });
+  const cables = p.cabId ? cabCables(p.cabId) : [];
+  let rows = S.wires.filter((w) => {
+    const c = S.cables.find((x) => x.id === w.cableId);
+    if (p.cabId && c.cabId !== p.cabId) return false;
+    if (p.cableId && c.id !== p.cableId) return false;
+    return true;
+  });
+  const labels = [];
+  for (let i = 0; i < p.copies; i++) labels.push(...rows);
+  return `
+  <div class="no-print">
+    <h1>🏷 הדפסת פתקי חיווט</h1>
+    <div class="card mb">
+      <div class="row">
+        <label>ארון <select onchange="App.printOpt('cabId', +this.value)">
+          <option value="0">— כל הארונות —</option>
+          ${S.cabinets.map((c) => `<option value="${c.id}" ${p.cabId === c.id ? "selected" : ""}>${c.no} · ${esc(c.name)}</option>`).join("")}
+        </select></label>
+        <label>כבל <select onchange="App.printOpt('cableId', +this.value)" ${!p.cabId ? "disabled" : ""}>
+          <option value="0">— כל הכבלים —</option>
+          ${cables.map((c) => `<option value="${c.id}" ${p.cableId === c.id ? "selected" : ""}>${c.no}</option>`).join("")}
+        </select></label>
+        <label>גודל <select onchange="App.printOpt('size', this.value)">
+          <option value="s" ${p.size === "s" ? "selected" : ""}>קטן</option>
+          <option value="m" ${p.size === "m" ? "selected" : ""}>בינוני</option>
+          <option value="l" ${p.size === "l" ? "selected" : ""}>גדול</option>
+        </select></label>
+        <label>עותקים <input type="number" min="1" max="5" value="${p.copies}" style="width:64px" onchange="App.printOpt('copies', Math.max(1, Math.min(5, +this.value || 1)))"></label>
+        <button class="pri" onclick="window.print()" ${!labels.length ? "disabled" : ""}>🖨 הדפסה / שמירה כ־PDF</button>
+      </div>
+      <p class="sub" style="margin-bottom:0">בחלון ההדפסה של הדפדפן אפשר לבחור «שמירה כ־PDF». <b class="num">${labels.length}</b> פתקים יודפסו.</p>
+    </div>
+    <h2>תצוגה מקדימה</h2>
+  </div>
+  <div class="labels ${p.size}">
+    ${labels.map((w) => {
+      const c = S.cables.find((x) => x.id === w.cableId);
+      return `<div class="label">
+        <div class="top"><span>כבל <span class="num">${c.no}</span></span><span>גיד <span class="num">${w.no}</span></span></div>
+        <div class="pts">
+          <div><span>מקור</span><b class="ltr">${c.src}</b><b class="ltr term">${w.srcT}</b></div>
+          <div><span>יעד</span><b class="ltr">${c.dst}</b><b class="ltr term">${w.dstT}</b></div>
+        </div>
+      </div>`;
+    }).join("") || '<p class="sub no-print">בחרו ארון או כבל</p>'}
+  </div>`;
+}
+
+function Mapping() {
+  return `<h1>📁 סטי חיווט — קליטת PDF</h1>
+  <p class="sub mb">הדגמה: הקבצים אינם נקראים — נשמר שם הקובץ בלבד, ונתוני החיווט מיוצרים על ידי מנוע הדגמה מדומה.</p>
+  ${S.sets.map((s) => `
+    <div class="card mb">
+      <div class="row" style="justify-content:space-between">
+        <b>${esc(s.name)}</b>
+        <span class="pill ${s.status === "approved" ? "st-done" : s.status === "review" ? "st-wait" : "st-none"}">
+          ${s.status === "approved" ? "אושר והוזן" : s.status === "review" ? "ממתין לבדיקת נתונים" : "קבצים הועלו"}</span>
+      </div>
+      <div class="sub">${s.files.map((f) => `📄 ${esc(f)}`).join(" · ")}</div>
+      <div class="row mt">
+        ${s.status === "uploaded" ? `<button class="pri" onclick="App.extract(${s.id})">▶ מיפוי סט החיווט</button>` : ""}
+        ${s.status === "review" ? ReviewTable(s) : ""}
+      </div>
+    </div>`).join("")}
+  <div class="card">
+    <h2>סט חדש</h2>
+    <div class="row">
+      <input id="setName" placeholder="שם הסט (למשל: סט חיווט 02)" style="flex:1;min-width:180px">
+      <input id="setFiles" type="file" accept=".pdf" multiple>
+      <button class="pri" onclick="App.addSet()">שמירת הסט</button>
+    </div>
+  </div>`;
+}
+
+function ReviewTable(s) {
+  const bad = s.rows.filter((r) => !rowValid(r)).length;
+  return `<div style="width:100%">
+    <p class="sub">בדקו ותקנו את השורות. שורות באדום חסרות שדות חובה. <b class="num">${s.rows.length}</b> שורות, <b class="num" style="color:var(--crit)">${bad}</b> לתיקון.</p>
+    <div class="scroll"><table>
+      <tr><th>ארון</th><th>כבל</th><th>גיד</th><th>מהדק מקור</th><th>ארון יעד</th><th>מהדק יעד</th><th>תיאור</th><th></th></tr>
+      ${s.rows.map((r, i) => `<tr class="${rowValid(r) ? "" : "bad"}">
+        ${["cab", "cable", "wire", "srcT", "dstCab", "dstT", "desc"].map((f) =>
+          `<td><input class="${f === "desc" ? "" : "ltr term"}" value="${esc(r[f])}" onchange="App.editRow(${s.id},${i},'${f}',this.value)"></td>`).join("")}
+        <td><button class="link" onclick="App.delRow(${s.id},${i})">מחיקה</button></td>
+      </tr>`).join("")}
+    </table></div>
+    <button class="pri mt" onclick="App.commitSet(${s.id})" ${bad ? "disabled" : ""}>📥 הכנסת הנתונים לפרויקט</button>
+    ${bad ? '<span class="sub"> תקנו קודם את השורות האדומות</span>' : ""}
+  </div>`;
+}
+const rowValid = (r) => r.cab && r.cable && r.wire && r.srcT && r.dstCab && r.dstT;
+
+function Notifs() {
+  return `<h1>🔔 התראות</h1>
+  <button class="mb" onclick="App.readAll()">סמן הכל כנקרא</button>
+  <div class="card"><ul class="plain">
+    ${S.notifs.map((n) => `<li style="${n.read ? "color:var(--ink2)" : "font-weight:700"}">${esc(n.msg)}<br><span class="sub" style="font-weight:400">${fmt(n.at)}</span></li>`).join("") || '<li class="sub">אין התראות</li>'}
+  </ul></div>`;
+}
+
+/* ---------- פעולות ---------- */
+window.App = {
+  login(id) { S.user = userById(id); save(); location.hash = "#/"; render(); },
+  logout() { S.user = null; save(); render(); },
+  reset() {
+    if (confirm("לאפס את כל נתוני הדוגמה? כל השינויים שביצעתם יימחקו.")) {
+      S = seed(); save(); location.hash = "#/"; render(); toast("נתוני הדוגמה אופסו");
+    }
+  },
+  showNotifs() { location.hash = "#/notifs"; },
+  readAll() { S.notifs.forEach((n) => (n.read = true)); save(); render(); },
+
+  toggleWire(wid) {
+    const w = S.wires.find((x) => x.id === wid);
+    const c = S.cables.find((x) => x.id === w.cableId);
+    const before = cableStatus(c);
+    w.done = !w.done;
+    w.doneBy = w.done ? S.user.id : null;
+    w.doneAt = w.done ? new Date().toISOString().slice(0, 16) : null;
+    if (!w.done && c.checked) { c.checked = false; c.checkedBy = null; c.checkedAt = null; }
+    log(w.done ? "סימון גיד כהושלם" : "ביטול השלמת גיד", `${c.no} גיד ${w.no}`);
+    this._afterCable(c, before);
+  },
+  markAll(cid) {
+    const c = S.cables.find((x) => x.id === cid);
+    const before = cableStatus(c);
+    cableWires(cid).filter((w) => !w.done).forEach((w) => {
+      w.done = true; w.doneBy = S.user.id; w.doneAt = new Date().toISOString().slice(0, 16);
+    });
+    log("סימון כל הגידים כהושלמו", c.no);
+    this._afterCable(c, before);
+    toast("כל הגידים סומנו כהושלמו ✔");
+  },
+  verify(cid) {
+    const c = S.cables.find((x) => x.id === cid);
+    if (!canVerify()) { toast("רק בודק או מנהל יכולים לאשר חיווט סופי", true); return; }
+    if (cableWires(cid).some((w) => !w.done)) { toast("לא ניתן לאשר — לא כל הגידים הושלמו", true); return; }
+    if (!confirm(`לאשר סופית את כבל ${c.no}? כל הגידים נבדקו.`)) return;
+    const cab = S.cabinets.find((x) => x.id === c.cabId);
+    const cabBefore = cabinetInfo(cab).st;
+    c.checked = true; c.checkedBy = S.user.id; c.checkedAt = new Date().toISOString().slice(0, 16);
+    log("אישור בדיקת כבל", c.no);
+    if (cabinetInfo(cab).st === "done" && cabBefore !== "done") notify(`ארון ${cab.no} הושלם 🎉`);
+    save(); render(); toast("הכבל אושר — הושלם ✔");
+  },
+  _afterCable(c, before) {
+    const after = cableStatus(c);
+    if (after === "wait" && before !== "wait") notify(`כבל ${c.no} ממתין לבדיקה`);
+    save(); render();
+  },
+  wireNote(wid) {
+    const w = S.wires.find((x) => x.id === wid);
+    const c = S.cables.find((x) => x.id === w.cableId);
+    const note = prompt("הערת שינוי לגיד (הערה שאינה ריקה תסמן חריגה מהתוכנית):", w.note);
+    if (note === null) return;
+    w.note = note.trim();
+    log("הערת שינוי על גיד", `${c.no} גיד ${w.no}`);
+    save(); render(); toast("ההערה נשמרה");
+  },
+  editNotes(cabId) {
+    const cab = S.cabinets.find((x) => x.id === cabId);
+    const n = prompt("הערות כלליות לארון:", cab.notes);
+    if (n === null) return;
+    cab.notes = n.trim();
+    log("עדכון הערות ארון", cab.no);
+    save(); render(); toast("ההערות נשמרו");
+  },
+  reportDev(cabId, cableId) {
+    const desc = prompt("תיאור השינוי / החריגה ביחס לתוכנית:");
+    if (!desc || !desc.trim()) return;
+    const reason = prompt("סיבת השינוי (אפשר להשאיר ריק):") || "";
+    const cab = S.cabinets.find((x) => x.id === cabId);
+    S.deviations.unshift({ id: ++S.nextId.dev, cabId, cableId: cableId || null, desc: desc.trim(), reason: reason.trim(), by: S.user.id, at: new Date().toISOString().slice(0, 16), status: "open", resp: "", respBy: null, respAt: null });
+    log("דיווח חריגה", cab.no + (cableId ? " " + S.cables.find((c) => c.id === cableId).no : ""));
+    notify(`נפתחה חריגה חדשה בארון ${cab.no}`);
+    save(); render(); toast("החריגה דווחה ונשלחה לטיפול המנהל");
+  },
+  respondDev(id) {
+    if (!isManager()) { toast("רק מנהל יכול להגיב ולאשר חריגות", true); return; }
+    const d = S.deviations.find((x) => x.id === id);
+    const resp = prompt("תגובת המנהל:", d.resp);
+    if (resp === null) return;
+    const ok = confirm("אישור = לאשר את החריגה. ביטול = לדחות אותה.");
+    d.resp = resp.trim(); d.status = ok ? "approved" : "rejected";
+    d.respBy = S.user.id; d.respAt = new Date().toISOString().slice(0, 16);
+    log(ok ? "אישור חריגה" : "דחיית חריגה", d.desc.slice(0, 40));
+    if (ok) notify("חריגה אושרה על ידי " + S.user.name);
+    save(); render(); toast(ok ? "החריגה אושרה" : "החריגה נדחתה");
+  },
+  printOpt(k, v) {
+    S.printOpts[k] = v;
+    if (k === "cabId") S.printOpts.cableId = 0;
+    save(); render();
+  },
+  addSet() {
+    const name = document.getElementById("setName").value.trim();
+    const files = [...document.getElementById("setFiles").files].map((f) => f.name);
+    if (!name) { toast("הזינו שם לסט", true); return; }
+    if (!files.length) { toast("בחרו לפחות קובץ PDF אחד", true); return; }
+    S.sets.push({ id: ++S.nextId.set, name, files, status: "uploaded", rows: [] });
+    log("יצירת סט חיווט", name);
+    save(); render(); toast("הסט נשמר — ניתן להפעיל מיפוי");
+  },
+  extract(sid) {
+    const s = S.sets.find((x) => x.id === sid);
+    toast("מנוע ההדגמה מעבד את הקבצים…");
+    setTimeout(() => {
+      let h = 0;
+      for (const ch of s.name + s.files.join()) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+      const cabNo = 10 + (h % 20);
+      s.rows = [];
+      const descs = ["מעגל פיקוד", "הזנת מתח עזר", "מעגל מדידה", "אות התראה", "תקשורת"];
+      for (let cb = 1; cb <= 2; cb++) {
+        const wiresN = 3 + ((h + cb) % 3);
+        for (let w = 1; w <= wiresN; w++) {
+          const broken = (h + cb * 5 + w) % 9 === 0;
+          s.rows.push({ cab: `+A${cabNo + cb - 1}`, cable: `C-${cabNo}${cb}`, wire: String(w),
+            srcT: `X${cb}:${w}`, dstCab: `+A${cabNo + cb + 1}`, dstT: broken ? "" : `X${cb + 1}:${w}`,
+            desc: descs[(h + w + cb) % descs.length] });
+        }
+      }
+      s.status = "review";
+      log("הפעלת מיפוי סט חיווט", s.name);
+      save(); render();
+      toast(`המיפוי הסתיים: ${s.rows.length} שורות (מנוע הדגמה — נתונים מדומים)`);
+    }, 900);
+  },
+  editRow(sid, i, f, v) {
+    const s = S.sets.find((x) => x.id === sid);
+    s.rows[i][f] = v.trim();
+    save(); render();
+  },
+  delRow(sid, i) {
+    const s = S.sets.find((x) => x.id === sid);
+    s.rows.splice(i, 1);
+    save(); render();
+  },
+  commitSet(sid) {
+    const s = S.sets.find((x) => x.id === sid);
+    if (s.rows.some((r) => !rowValid(r))) { toast("תקנו קודם את השורות הלא תקינות", true); return; }
+    if (!confirm(`להזין ${s.rows.length} גידים לפרויקט וליצור מהם רשימות עבודה?`)) return;
+    const byCab = {};
+    s.rows.forEach((r) => ((byCab[r.cab] = byCab[r.cab] || {}), (byCab[r.cab][r.cable] = byCab[r.cab][r.cable] || []).push(r)));
+    for (const cabNo in byCab) {
+      let cab = S.cabinets.find((c) => c.no === cabNo);
+      if (!cab) { cab = { id: ++S.nextId.cabinet, no: cabNo, name: "ארון " + cabNo, loc: "", assignee: null, notes: "" }; S.cabinets.push(cab); }
+      for (const cableNo in byCab[cabNo]) {
+        const rows = byCab[cabNo][cableNo];
+        let cable = S.cables.find((c) => c.cabId === cab.id && c.no === cableNo);
+        if (!cable) { cable = { id: ++S.nextId.cable, cabId: cab.id, no: cableNo, src: cabNo, dst: rows[0].dstCab, type: "—", desc: rows[0].desc, checked: false, checkedBy: null, checkedAt: null, notes: "" }; S.cables.push(cable); }
+        rows.forEach((r) => S.wires.push({ id: ++S.nextId.wire, cableId: cable.id, no: r.wire, srcT: r.srcT, dstT: r.dstT, desc: r.desc, done: false, doneBy: null, doneAt: null, note: "" }));
+      }
+    }
+    s.status = "approved";
+    log("אישור נתוני מיפוי והזנה לפרויקט", s.name);
+    notify(`סט "${s.name}" אושר והוזן לפרויקט (${s.rows.length} גידים)`);
+    save(); location.hash = "#/cabinets"; render();
+    toast("הנתונים הוזנו — נוצרו רשימות עבודה חדשות");
+  },
+};
+
+render();
+</script>
