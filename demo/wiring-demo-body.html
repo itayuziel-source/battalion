@@ -109,6 +109,8 @@
   h1 { font-size: 21px; margin: 0 0 14px; }
   h2 { font-size: 16px; margin: 0 0 10px; }
   .sub { color: var(--ink2); font-size: 13px; }
+  .crumbs { color: var(--ink2); font-size: 13px; margin: 0 0 10px; }
+  .crumbs a { color: var(--accent); }
 
   .card {
     background: var(--surface); border: 1px solid var(--line);
@@ -117,9 +119,9 @@
   .grid { display: grid; gap: 12px; }
   .g2 { grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); }
   .g3 { grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); }
-  .stats { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); }
+  .stats { display: grid; gap: 10px; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); }
   .stat { text-align: center; padding: 12px 8px; }
-  .stat b { display: block; font-size: 26px; font-variant-numeric: tabular-nums; }
+  .stat b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
   .stat span { font-size: 12.5px; color: var(--ink2); }
 
   .pill {
@@ -209,6 +211,24 @@
   }
   .dev-card.open { border-inline-start: 4px solid var(--crit); }
 
+  .day-head {
+    background: var(--surface2); border-radius: 8px; padding: 8px 12px;
+    font-weight: 800; margin: 16px 0 8px; display: flex; justify-content: space-between; align-items: center;
+  }
+  .overlay {
+    position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 50;
+    display: flex; align-items: center; justify-content: center; padding: 16px;
+  }
+  .qr-tag {
+    background: var(--surface); border-radius: 12px; padding: 22px; max-width: 340px; width: 100%;
+    text-align: center; border: 2px solid var(--ink);
+  }
+  .qr-ph {
+    width: 150px; height: 150px; margin: 12px auto; border: 2px dashed var(--ink2);
+    border-radius: 8px; display: flex; align-items: center; justify-content: center;
+    color: var(--ink2); font-size: 12px; padding: 10px;
+  }
+
   @media (prefers-reduced-motion: no-preference) {
     .toast { animation: pop .18s ease-out; }
     @keyframes pop { from { opacity: 0; transform: translateX(50%) translateY(8px); } }
@@ -233,6 +253,7 @@
   <nav class="tabs" id="tabs"></nav>
 </header>
 <main id="app"></main>
+<div id="qrHost"></div>
 
 <script>
 "use strict";
@@ -240,11 +261,11 @@ document.documentElement.setAttribute("dir", "rtl");
 document.documentElement.setAttribute("lang", "he");
 
 /* ---------- נתונים ---------- */
-const KEY = "wiring_demo_v2";
-const ROLES = { worker: "עובד", inspector: "בודקת", manager: "מנהל" };
+const KEY = "wiring_demo_v3";
+const ROLES = { worker: "עובד", inspector: "בודקת", manager: "מנהל מחלקה" };
 const ST = { none: "טרם התחיל", prog: "בביצוע", wait: "ממתין לבדיקה", done: "הושלם", issue: "חריגה" };
 
-let S = null; // state
+let S = null;
 
 function seed() {
   const users = [
@@ -254,50 +275,62 @@ function seed() {
     { id: 4, name: "רונית אברהם", no: "2001", role: "inspector" },
     { id: 5, name: "אבי מזרחי", no: "3001", role: "manager" },
   ];
+  const projects = [
+    { id: 1, name: "תחמ״ש איתן", work: "W-2026-0142", manager: "אבי מזרחי" },
+    { id: 2, name: "תחמ״ש דרום", work: "W-2026-0187", manager: "אבי מזרחי" },
+  ];
+  const rooms = [
+    { id: 1, projectId: 1, name: "חדר פיקוד" },
+    { id: 2, projectId: 1, name: "אולם מסדרים" },
+    { id: 3, projectId: 1, name: "חדר תקשורת" },
+    { id: 4, projectId: 2, name: "חדר פיקוד" },
+  ];
   const cabinets = [
-    { id: 1, no: "+A1", name: "ארון פיקוד ראשי", loc: "חדר פיקוד — קומה 0", assignee: 1, notes: "ארון צפוף — לשים לב לתיעול הגידים" },
-    { id: 2, no: "+A2", name: "ארון הגנות קו 1", loc: "אולם מסדרים — מזרח", assignee: 2, notes: "" },
-    { id: 3, no: "+A3", name: "ארון מדידה", loc: "אולם מסדרים — מערב", assignee: 3, notes: "" },
-    { id: 4, no: "+A4", name: "ארון תקשורת ובקרה", loc: "חדר תקשורת — קומה 1", assignee: null, notes: "" },
+    { id: 1, roomId: 1, no: "+A1", name: "ארון פיקוד ראשי", assignee: 1, notes: "ארון צפוף — לשים לב לתיעול הגידים" },
+    { id: 2, roomId: 2, no: "+A2", name: "ארון הגנות קו 1", assignee: 2, notes: "" },
+    { id: 3, roomId: 2, no: "+A3", name: "ארון מדידה", assignee: 3, notes: "" },
+    { id: 4, roomId: 3, no: "+A4", name: "ארון תקשורת ובקרה", assignee: null, notes: "" },
+    { id: 5, roomId: 4, no: "+B1", name: "ארון פיקוד ראשי", assignee: 1, notes: "" },
   ];
   const cables = [];
   const wires = [];
   let cid = 0, wid = 0;
   const D = "2026-07-";
   function addCable(cabId, no, dst, type, desc, wireDefs, checked) {
-    const c = { id: ++cid, cabId, no, src: cabinets[cabId - 1].no, dst, type, desc, checked: !!checked, checkedBy: checked ? 4 : null, checkedAt: checked ? D + "18T10:30" : null, notes: "" };
+    const cab = cabinets.find((x) => x.id === cabId);
+    const c = { id: ++cid, cabId, no, src: cab.no, dst, type, desc, checked: !!checked, checkedBy: checked ? 4 : null, checkedAt: checked ? D + "18T10:30" : null, notes: "" };
     cables.push(c);
     wireDefs.forEach((wd, i) => {
       wires.push({ id: ++wid, cableId: c.id, no: String(i + 1), srcT: wd[0], dstT: wd[1], desc: wd[2],
-        done: !!wd[3], doneBy: wd[3] ? wd[3] : null, doneAt: wd[3] ? D + (10 + (i % 9)) + "T11:00" : null, note: wd[4] || "" });
+        done: !!wd[3], doneBy: wd[3] ? wd[3] : null, doneAt: wd[3] ? D + (14 + (i % 9)) + "T11:0" + (i % 10) : null, note: wd[4] || "" });
     });
     return c;
   }
-  // +A1 — רובו הושלם ונבדק
+  // חדר פיקוד — +A1 (רובו הושלם ונבדק)
   addCable(1, "C-101", "+A2", "NYY 7x1.5", "מעגל פיקוד ראשי", [["X1:1","X1:1","הזנת פיקוד +",1],["X1:2","X1:2","הזנת פיקוד -",1],["X1:3","X1:3","אות תקלה",1],["X1:4","X1:4","אות מצב מפסק",1],["X1:5","X1:5","רזרבה",1]], true);
   addCable(1, "C-102", "+A3", "LIYCY 4x0.75", "אותות מדידה", [["X2:1","X1:1","מדידת זרם L1",1],["X2:2","X1:2","מדידת זרם L2",1],["X2:3","X1:3","מדידת זרם L3",1],["X2:4","X1:4","נקודת אפס",1]], true);
   addCable(1, "C-104", "+A2", "NYY 4x1.5", "הזנת מתח עזר 110VDC", [["X4:1","X2:1","110VDC +",1],["X4:2","X2:2","110VDC -",1],["X4:3","X2:3","הארקה",1]], false);
   addCable(1, "C-105", "+A3", "NYY 4x1.5", "תאורת ארון וחימום", [["X5:1","X3:1","הזנת תאורה",3],["X5:2","X3:2","הזנת חימום",3],["X5:3","X3:3","אפס משותף",0]], false);
-  // +A2 — בביצוע + חריגה פתוחה
+  // אולם מסדרים — +A2 (בביצוע + חריגה)
   addCable(2, "C-201", "+A1", "NYY 7x1.5", "מעגלי הגנה ראשיים", [["X1:1","X6:1","הפעלת הגנה 1",2],["X1:2","X6:2","הפעלת הגנה 2",2],["X1:3","X6:3","אות חיווי",2],["X1:4","X6:4","רזרבה",2],["X1:5","X6:5","הארקת סיכוך",2]], false);
   addCable(2, "C-202", "+A3", "LIYCY 7x0.75", "אותות מדידה להגנות", [["X2:1","X2:1","זרם הגנה L1",2],["X2:2","X2:2","זרם הגנה L2",2],["X2:3","X2:3","זרם הגנה L3",0],["X2:4","X2:4","מתח ייחוס",0]], false);
   const c204 = addCable(2, "C-204", "+A1", "NYY 4x1.5", "מעגל השהיה", [["X4:1","X7:1","הזנה",2,"חובר למהדק X7:4 — אין מקום בפס"],["X4:2","X7:2","חזרה",0],["X4:3","X7:3","הארקה",0]], false);
   addCable(2, "C-205", "+A3", "NYY 4x1.5", "הזנת שקעי שירות", [["X5:1","X4:1","פאזה",0],["X5:2","X4:2","אפס",0],["X5:3","X4:3","הארקה",0]], false);
-  // +A3 — התחלה
+  // אולם מסדרים — +A3
   addCable(3, "C-301", "+A1", "LIYCY 4x0.75", "מדידת מתח ראשית", [["X1:1","X8:1","מתח L1",3],["X1:2","X8:2","מתח L2",3],["X1:3","X8:3","מתח L3",3],["X1:4","X8:4","אפס",3]], false);
   const c302 = addCable(3, "C-302", "+A2", "LIYCY 7x0.75", "מונה אנרגיה", [["X2:1","X5:1","זרם מונה L1",3],["X2:2","X5:2","זרם מונה L2",3],["X2:3","X5:3","זרם מונה L3",0],["X2:4","X5:4","מתח מונה",0]], false);
   addCable(3, "C-303", "+A4", "LIYCY 4x0.75", "שידור נתוני מדידה", [["X3:1","X2:1","RS485 A",0],["X3:2","X2:2","RS485 B",0],["X3:3","X2:3","סיכוך",0]], false);
-  addCable(3, "C-304", "+A1", "NYY 4x1.5", "מתח עזר למדידה", [["X4:1","X9:1","פאזה",0],["X4:2","X9:2","אפס",0],["X4:3","X9:3","הארקה",0]], false);
-  // +A4 — טרם התחיל
+  // חדר תקשורת — +A4 (טרם התחיל)
   addCable(4, "C-401", "+A1", "LIYCY 12x0.75", "ריכוז התראות", [["X1:1","X10:1","התראה כללית",0],["X1:2","X10:2","התראת מתח",0],["X1:3","X10:3","התראת תקשורת",0],["X1:4","X10:4","רזרבה",0],["X1:5","X10:5","סיכוך",0]], false);
   addCable(4, "C-402", "+A2", "LIYCY 4x0.75", "תקשורת להגנות", [["X2:1","X7:1","TX+",0],["X2:2","X7:2","TX-",0],["X2:3","X7:3","סיכוך",0]], false);
-  addCable(4, "C-403", "+A3", "LIYCY 4x0.75", "תקשורת למדידה", [["X3:1","X6:1","RS485 A",0],["X3:2","X6:2","RS485 B",0],["X3:3","X6:3","סיכוך",0]], false);
+  // תחמ״ש דרום — +B1 (התחלה)
+  addCable(5, "C-501", "+B2", "NYY 7x1.5", "מעגל פיקוד ראשי", [["X1:1","X1:1","הזנת פיקוד +",1],["X1:2","X1:2","הזנת פיקוד -",0],["X1:3","X1:3","אות תקלה",0]], false);
+  addCable(5, "C-502", "+B3", "LIYCY 4x0.75", "אותות מדידה", [["X2:1","X1:1","זרם L1",0],["X2:2","X1:2","זרם L2",0],["X2:3","X1:3","זרם L3",0]], false);
 
   return {
     user: null,
-    project: { name: "תחמ״ש לדוגמה", station: "תחנת משנה — אתר הדגמה", work: "W-2026-0142", manager: "אבי מזרחי" },
-    users, cabinets, cables, wires,
-    nextId: { cable: cid, wire: wid, cabinet: 4, dev: 3, set: 2 },
+    projects, rooms, users, cabinets, cables, wires,
+    nextId: { cable: cid, wire: wid, cabinet: 5, dev: 3, set: 2, room: 4 },
     deviations: [
       { id: 1, cabId: 2, cableId: c204.id, desc: "גיד 1 של כבל C-204 חובר למהדק X7:4 במקום X7:1", reason: "פס המהדקים מלא", by: 2, at: D + "20T09:15", status: "open", resp: "", respBy: null, respAt: null },
       { id: 2, cabId: 3, cableId: c302.id, desc: "הוחלף פס מהדקים X2 לפס רחב יותר", reason: "הפס המקורי לא התאים לחתך", by: 3, at: D + "18T13:40", status: "approved", resp: "מאושר. לעדכן בתוכנית As-Made.", respBy: 5, respAt: D + "19T08:00" },
@@ -325,8 +358,14 @@ S = load() || seed(); save();
 /* ---------- חישובים (אותם כללים כמו במערכת המלאה) ---------- */
 const userById = (id) => S.users.find((u) => u.id === id);
 const uname = (id) => (userById(id) || {}).name || "—";
+const roomById = (id) => S.rooms.find((r) => r.id === id);
+const projById = (id) => S.projects.find((p) => p.id === id);
+const cabProject = (cab) => projById(roomById(cab.roomId).projectId);
 const cableWires = (cid) => S.wires.filter((w) => w.cableId === cid);
 const cabCables = (cabId) => S.cables.filter((c) => c.cabId === cabId);
+const roomCabinets = (roomId) => S.cabinets.filter((c) => c.roomId === roomId);
+const projRooms = (pid) => S.rooms.filter((r) => r.projectId === pid);
+const projCabinets = (pid) => S.cabinets.filter((c) => projRooms(pid).some((r) => r.id === c.roomId));
 const openDevCable = (cid) => S.deviations.some((d) => d.cableId === cid && (d.status === "open" || d.status === "in_review"));
 const openDevCab = (cabId) => S.deviations.filter((d) => d.cabId === cabId && (d.status === "open" || d.status === "in_review")).length;
 
@@ -351,9 +390,9 @@ function cabinetInfo(cab) {
   else st = "prog";
   return { done, total: cs.length, pct, st };
 }
-function projectPct() {
+function aggPct(cabs) {
   let tot = 0, w = 0;
-  S.cabinets.forEach((cab) => { const i = cabinetInfo(cab); tot += i.total; w += i.pct * i.total; });
+  cabs.forEach((cab) => { const i = cabinetInfo(cab); tot += i.total; w += i.pct * i.total; });
   return tot ? Math.round(w / tot) : 0;
 }
 const canVerify = () => S.user && (S.user.role === "inspector" || S.user.role === "manager");
@@ -368,6 +407,10 @@ function fmt(iso) {
   const d = new Date(iso);
   return d.toLocaleDateString("he-IL", { day: "2-digit", month: "2-digit" }) + " " +
          d.toLocaleTimeString("he-IL", { hour: "2-digit", minute: "2-digit" });
+}
+function fmtDay(day) {
+  const d = new Date(day + "T00:00");
+  return d.toLocaleDateString("he-IL", { weekday: "long", day: "2-digit", month: "2-digit", year: "numeric" });
 }
 const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/"/g, "&quot;");
 const pill = (st) => `<span class="pill st-${st}">${ST[st]}</span>`;
@@ -386,7 +429,7 @@ function toast(msg, err) {
 
 /* ---------- ניתוב ---------- */
 const TABS = [
-  ["#/", "לוח בקרה"], ["#/cabinets", "ארונות"], ["#/mapping", "סט חיווט"],
+  ["#/", "פרויקטים"], ["#/daily", "דיווח יומי"], ["#/mapping", "סט חיווט"],
   ["#/deviations", "חריגות"], ["#/print", "פתקי חיווט"],
 ];
 function render() {
@@ -402,14 +445,16 @@ function render() {
     ([h, l]) => `<a href="${h}" class="${hash === h || (h !== "#/" && hash.startsWith(h)) ? "on" : ""}">${l}</a>`
   ).join("");
 
-  if (hash.startsWith("#/cabinet/")) app.innerHTML = Cabinet(+hash.split("/")[2]);
+  if (hash.startsWith("#/project/")) app.innerHTML = Project(+hash.split("/")[2]);
+  else if (hash.startsWith("#/room/")) app.innerHTML = Room(+hash.split("/")[2]);
+  else if (hash.startsWith("#/cabinet/")) app.innerHTML = Cabinet(+hash.split("/")[2]);
   else if (hash.startsWith("#/cable/")) app.innerHTML = Cable(+hash.split("/")[2]);
-  else if (hash.startsWith("#/cabinets")) app.innerHTML = Cabinets();
+  else if (hash.startsWith("#/daily")) app.innerHTML = Daily();
   else if (hash.startsWith("#/mapping")) app.innerHTML = Mapping();
   else if (hash.startsWith("#/deviations")) app.innerHTML = Deviations();
   else if (hash.startsWith("#/print")) app.innerHTML = Print();
   else if (hash.startsWith("#/notifs")) app.innerHTML = Notifs();
-  else app.innerHTML = Dash();
+  else app.innerHTML = Projects();
   window.scrollTo(0, 0);
 }
 window.addEventListener("hashchange", render);
@@ -429,63 +474,96 @@ function Login() {
           <span style="color:var(--accent)">כניסה ←</span>
         </button>`).join("")}
     </div>
-    <p class="sub" style="text-align:center" class="mt">כל הנתונים מדומים · <button class="link" onclick="App.reset()">איפוס נתוני הדוגמה</button></p>
+    <p class="sub mt" style="text-align:center">כל הנתונים מדומים · <button class="link" onclick="App.reset()">איפוס נתוני הדוגמה</button></p>
   </div>`;
 }
 
-function Dash() {
-  const pct = projectPct();
-  const infos = S.cabinets.map((c) => ({ c, i: cabinetInfo(c) }));
-  const cablesAll = S.cables.length;
-  const cablesDone = S.cables.filter((c) => cableStatus(c) === "done").length;
-  const wiresOpen = S.wires.filter((w) => !w.done).length;
-  const waiting = S.cables.filter((c) => cableStatus(c) === "wait").length;
-  const openDevs = S.deviations.filter((d) => d.status === "open" || d.status === "in_review").length;
+function Projects() {
+  return `<h1>🏗 פרויקטים</h1>
+  <div class="grid g2">
+    ${S.projects.map((p) => {
+      const cabs = projCabinets(p.id);
+      const pct = aggPct(cabs);
+      const rooms = projRooms(p.id);
+      const openDevs = S.deviations.filter((d) => d.status === "open" && cabs.some((c) => c.id === d.cabId)).length;
+      const doneCabs = cabs.filter((c) => cabinetInfo(c).st === "done").length;
+      return `<a href="#/project/${p.id}" style="text-decoration:none;color:inherit">
+        <div class="card" style="height:100%">
+          <div class="row" style="justify-content:space-between">
+            <b style="font-size:18px">${esc(p.name)}</b>
+            <b class="num" style="color:var(--accent)">${pct}%</b>
+          </div>
+          <div class="sub mb">מס׳ עבודה <span class="num">${p.work}</span> · מנהל: ${esc(p.manager)}</div>
+          ${meter(pct)}
+          <div class="row mt sub">
+            <span>🚪 <b class="num">${rooms.length}</b> חדרים</span>
+            <span>🗄 <b class="num">${doneCabs}/${cabs.length}</b> ארונות הושלמו</span>
+            ${openDevs ? `<span style="color:var(--crit);font-weight:700">⚠ ${openDevs} חריגות</span>` : ""}
+          </div>
+        </div></a>`;
+    }).join("")}
+  </div>
+  <p class="sub mt">בהמשך: כל תחמ״ש חדש נפתח כפרויקט נוסף ברשימה הזו.</p>`;
+}
+
+function Project(pid) {
+  const p = projById(pid);
+  if (!p) return "<p>פרויקט לא נמצא</p>";
+  const cabs = projCabinets(pid);
+  const pct = aggPct(cabs);
+  const cables = S.cables.filter((c) => cabs.some((cab) => cab.id === c.cabId));
+  const cablesDone = cables.filter((c) => cableStatus(c) === "done").length;
+  const wids = new Set(cables.map((c) => c.id));
+  const wiresOpen = S.wires.filter((w) => wids.has(w.cableId) && !w.done).length;
+  const waiting = cables.filter((c) => cableStatus(c) === "wait").length;
+  const openDevs = S.deviations.filter((d) => (d.status === "open" || d.status === "in_review") && cabs.some((c) => c.id === d.cabId)).length;
   return `
+  <p class="crumbs"><a href="#/">פרויקטים</a> / <b>${esc(p.name)}</b></p>
   <div class="card mb">
     <div class="row" style="justify-content:space-between">
       <div>
-        <h1 style="margin:0">${esc(S.project.name)}</h1>
-        <span class="sub">${esc(S.project.station)} · מס׳ עבודה <span class="num">${S.project.work}</span> · אחראי: ${esc(S.project.manager)}</span>
+        <h1 style="margin:0">${esc(p.name)}</h1>
+        <span class="sub">מס׳ עבודה <span class="num">${p.work}</span> · מנהל מחלקה: ${esc(p.manager)}</span>
       </div>
-      <a class="btn pri" href="#/mapping">⬆ העלאת סט חיווט</a>
+      <a class="btn" href="#/daily">📅 דיווח יומי</a>
     </div>
     <div class="row mt" style="justify-content:space-between"><b>התקדמות כללית</b><b class="num" style="color:var(--accent)">${pct}%</b></div>
     ${meter(pct)}
   </div>
   <div class="stats mb">
-    <div class="card stat"><b style="color:var(--good)" class="num">${infos.filter((x) => x.i.st === "done").length}/${S.cabinets.length}</b><span>ארונות שהושלמו</span></div>
-    <div class="card stat"><b style="color:var(--warn)" class="num">${infos.filter((x) => x.i.st === "prog").length}</b><span>ארונות בביצוע</span></div>
-    <div class="card stat"><b style="color:var(--good)" class="num">${cablesDone}/${cablesAll}</b><span>כבלים שהושלמו</span></div>
+    <div class="card stat"><b style="color:var(--good)" class="num">${cablesDone}/${cables.length}</b><span>כבלים שהושלמו</span></div>
     <div class="card stat"><b style="color:var(--wait)" class="num">${wiresOpen}</b><span>גידים פתוחים</span></div>
-    <div class="card stat"><b style="color:${openDevs ? "var(--crit)" : "var(--ink2)"}" class="num">${openDevs}</b><span>חריגות פתוחות</span></div>
     <div class="card stat"><b style="color:var(--wait)" class="num">${waiting}</b><span>ממתינים לבדיקה</span></div>
+    <div class="card stat"><b style="color:${openDevs ? "var(--crit)" : "var(--ink2)"}" class="num">${openDevs}</b><span>חריגות פתוחות</span></div>
   </div>
-  <div class="grid g2">
-    <div class="card">
-      <h2>🗄 מצב הארונות</h2>
-      ${infos.map(({ c, i }) => `
-        <a href="#/cabinet/${c.id}" style="text-decoration:none;color:inherit;display:block;padding:8px 0;border-bottom:1px solid var(--line)">
-          <div class="row" style="justify-content:space-between">
-            <b><span class="num">${c.no}</span> <span class="sub">${esc(c.name)}</span></b>
-            <span class="row">${pill(i.st)} <b class="num">${i.pct}%</b></span>
-          </div>
-          ${meter(i.pct)}
-        </a>`).join("")}
-    </div>
-    <div class="card">
-      <h2>🛠 עדכוני ביצוע אחרונים</h2>
-      <ul class="plain">${S.activity.slice(0, 8).map((a) => `
-        <li><b>${esc(uname(a.by))}</b> — ${esc(a.action)} <span class="sub">(${esc(a.label)})</span><br><span class="sub">${fmt(a.at)}</span></li>`).join("")}
-      </ul>
-    </div>
+  <h2>🚪 חדרים</h2>
+  <div class="grid g3">
+    ${projRooms(pid).map((r) => {
+      const rcabs = roomCabinets(r.id);
+      const rpct = aggPct(rcabs);
+      const rdone = rcabs.filter((c) => cabinetInfo(c).st === "done").length;
+      const rdev = rcabs.reduce((s, c) => s + openDevCab(c.id), 0);
+      return `<a href="#/room/${r.id}" style="text-decoration:none;color:inherit">
+        <div class="card" style="height:100%">
+          <div class="row" style="justify-content:space-between"><b style="font-size:16px">${esc(r.name)}</b><b class="num">${rpct}%</b></div>
+          ${meter(rpct)}
+          <div class="sub mt">🗄 <b class="num">${rdone}/${rcabs.length}</b> ארונות הושלמו</div>
+          ${rdev ? `<div style="color:var(--crit);font-weight:700;font-size:13px">⚠ ${rdev} חריגות פתוחות</div>` : ""}
+        </div></a>`;
+    }).join("")}
   </div>`;
 }
 
-function Cabinets() {
-  return `<h1>🗄 ארונות</h1>
+function Room(rid) {
+  const r = roomById(rid);
+  if (!r) return "<p>חדר לא נמצא</p>";
+  const p = projById(r.projectId);
+  const cabs = roomCabinets(rid);
+  return `
+  <p class="crumbs"><a href="#/">פרויקטים</a> / <a href="#/project/${p.id}">${esc(p.name)}</a> / <b>${esc(r.name)}</b></p>
+  <h1>🚪 ${esc(r.name)} <span class="sub">· ${cabs.length} ארונות</span></h1>
   <div class="grid g3">
-    ${S.cabinets.map((cab) => {
+    ${cabs.map((cab) => {
       const i = cabinetInfo(cab);
       const devs = openDevCab(cab.id);
       return `<a href="#/cabinet/${cab.id}" style="text-decoration:none;color:inherit">
@@ -508,19 +586,26 @@ function Cabinets() {
 function Cabinet(id) {
   const cab = S.cabinets.find((c) => c.id === id);
   if (!cab) return "<p>ארון לא נמצא</p>";
+  const room = roomById(cab.roomId);
+  const p = projById(room.projectId);
   const i = cabinetInfo(cab);
   const cs = cabCables(cab.id);
-  const workers = [...new Set(S.wires.filter((w) => cs.some((c) => c.id === w.cableId) && w.doneBy).map((w) => w.doneBy))];
+  // מי חיווט בארון: פירוט לפי עובד
+  const workerWires = {};
+  S.wires.forEach((w) => {
+    if (w.doneBy && cs.some((c) => c.id === w.cableId)) workerWires[w.doneBy] = (workerWires[w.doneBy] || 0) + 1;
+  });
   const acts = S.activity.filter((a) => cs.some((c) => a.label.startsWith(c.no)) || a.label.includes(cab.no)).slice(0, 10);
   return `
-  <p class="sub no-print"><a href="#/cabinets">ארונות</a> / <b class="num">${cab.no}</b></p>
+  <p class="crumbs no-print"><a href="#/">פרויקטים</a> / <a href="#/project/${p.id}">${esc(p.name)}</a> / <a href="#/room/${room.id}">${esc(room.name)}</a> / <b class="num">${cab.no}</b></p>
   <div class="card mb">
     <div class="row" style="justify-content:space-between">
       <div>
         <h1 style="margin:0"><span class="num">${cab.no}</span> ${pill(i.st)}</h1>
-        <div class="sub">${esc(cab.name)} · 📍 ${esc(cab.loc)} · 👷 ${cab.assignee ? esc(uname(cab.assignee)) : "לא שויך"}</div>
+        <div class="sub">${esc(cab.name)} · 🚪 ${esc(room.name)} · 👷 ${cab.assignee ? esc(uname(cab.assignee)) : "לא שויך"}</div>
       </div>
       <div class="row no-print">
+        <button onclick="App.showQr(${cab.id})">🔳 QR</button>
         <button onclick="App.editNotes(${cab.id})">📝 הערות</button>
         <button class="pri" onclick="App.reportDev(${cab.id})">⚠ דיווח חריגה</button>
       </div>
@@ -544,8 +629,9 @@ function Cabinet(id) {
     }).join("")}
   </div>
   <div class="grid g2">
-    <div class="card"><h2>👷 עובדים שביצעו עבודה</h2>
-      ${workers.length ? workers.map((w) => `<span class="pill st-wait">${esc(uname(w))}</span> `).join("") : '<span class="sub">טרם בוצעה עבודה</span>'}
+    <div class="card"><h2>👷 מי חיווט בארון</h2>
+      ${Object.keys(workerWires).length ? `<ul class="plain">${Object.entries(workerWires).map(([uid, n]) =>
+        `<li><b>${esc(uname(+uid))}</b> — <span class="num">${n}</span> גידים</li>`).join("")}</ul>` : '<span class="sub">טרם בוצעה עבודה</span>'}
     </div>
     <div class="card"><h2>🕓 היסטוריית פעולות</h2>
       <ul class="plain">${acts.length ? acts.map((a) => `<li><b>${esc(uname(a.by))}</b> — ${esc(a.action)} <span class="sub">(${esc(a.label)}) · ${fmt(a.at)}</span></li>`).join("") : '<li class="sub">אין פעולות</li>'}</ul>
@@ -557,12 +643,14 @@ function Cable(id) {
   const c = S.cables.find((x) => x.id === id);
   if (!c) return "<p>כבל לא נמצא</p>";
   const cab = S.cabinets.find((x) => x.id === c.cabId);
+  const room = roomById(cab.roomId);
+  const p = projById(room.projectId);
   const ws = cableWires(c.id);
   const done = ws.filter((w) => w.done).length;
   const pct = ws.length ? Math.round(done / ws.length * 100) : 0;
   const st = cableStatus(c);
   return `
-  <p class="sub"><a href="#/cabinets">ארונות</a> / <a href="#/cabinet/${cab.id}">ארון <span class="num">${cab.no}</span></a> / <b class="num">${c.no}</b></p>
+  <p class="crumbs"><a href="#/project/${p.id}">${esc(p.name)}</a> / <a href="#/room/${room.id}">${esc(room.name)}</a> / <a href="#/cabinet/${cab.id}">ארון <span class="num">${cab.no}</span></a> / <b class="num">${c.no}</b></p>
   <div class="card mb">
     <div class="row" style="justify-content:space-between">
       <div>
@@ -597,6 +685,46 @@ function Cable(id) {
       </div>
       <button onclick="App.wireNote(${w.id})">📝 הערה</button>
     </div>`).join("")}`;
+}
+
+function Daily() {
+  // דיווח יומי: קיבוץ כל הביצוע לפי יום — מה נעשה, מי עשה, בכמה ארונות
+  const days = {};
+  function dayOf(iso) { return (iso || "").slice(0, 10); }
+  S.wires.forEach((w) => {
+    if (!w.done || !w.doneAt) return;
+    const d = dayOf(w.doneAt);
+    days[d] = days[d] || { wires: {}, cabs: new Set(), events: [] };
+    days[d].wires[w.doneBy] = (days[d].wires[w.doneBy] || 0) + 1;
+    const cable = S.cables.find((c) => c.id === w.cableId);
+    if (cable) days[d].cabs.add(cable.cabId);
+  });
+  S.activity.forEach((a) => {
+    if (a.action === "סימון גיד כהושלם" || a.action === "סימון כל הגידים כהושלמו" || a.action === "ביטול השלמת גיד") return;
+    const d = dayOf(a.at);
+    if (!d) return;
+    days[d] = days[d] || { wires: {}, cabs: new Set(), events: [] };
+    days[d].events.push(a);
+  });
+  const sorted = Object.keys(days).sort().reverse();
+  return `<h1>📅 דיווח יומי</h1>
+  <p class="sub mb">מה נעשה בכל יום עבודה — לפי עובד ולפי ארון. ${isManager() ? "כמנהל מחלקה אתה רואה את הדיווח המרוכז של כולם." : "המנהל רואה את הדיווח המרוכז של כולם."}</p>
+  ${sorted.length ? sorted.map((d) => {
+    const day = days[d];
+    const totalWires = Object.values(day.wires).reduce((s, n) => s + n, 0);
+    const cabNames = [...day.cabs].map((id) => (S.cabinets.find((c) => c.id === id) || {}).no).filter(Boolean);
+    return `<div class="day-head"><span>${fmtDay(d)}</span>
+      <span class="sub"><b class="num">${totalWires}</b> גידים חווטו · <b class="num">${day.cabs.size}</b> ארונות</span></div>
+    <div class="card">
+      ${Object.keys(day.wires).length ? `<table>
+        <tr><th>עובד</th><th>גידים שחווטו</th></tr>
+        ${Object.entries(day.wires).map(([uid, n]) => `<tr><td><b>${esc(uname(+uid))}</b></td><td class="num">${n}</td></tr>`).join("")}
+      </table>` : ""}
+      ${cabNames.length ? `<div class="sub mt">ארונות שעודכנו: <span class="ltr">${cabNames.join(", ")}</span></div>` : ""}
+      ${day.events.length ? `<ul class="plain mt">${day.events.map((a) =>
+        `<li><b>${esc(uname(a.by))}</b> — ${esc(a.action)} <span class="sub">(${esc(a.label)})</span></li>`).join("")}</ul>` : ""}
+    </div>`;
+  }).join("") : '<p class="sub">אין עדיין דיווחי ביצוע</p>'}`;
 }
 
 function Deviations() {
@@ -642,7 +770,7 @@ function Print() {
       <div class="row">
         <label>ארון <select onchange="App.printOpt('cabId', +this.value)">
           <option value="0">— כל הארונות —</option>
-          ${S.cabinets.map((c) => `<option value="${c.id}" ${p.cabId === c.id ? "selected" : ""}>${c.no} · ${esc(c.name)}</option>`).join("")}
+          ${S.cabinets.map((c) => `<option value="${c.id}" ${p.cabId === c.id ? "selected" : ""}>${c.no} · ${esc(c.name)} (${esc(roomById(c.roomId).name)})</option>`).join("")}
         </select></label>
         <label>כבל <select onchange="App.printOpt('cableId', +this.value)" ${!p.cabId ? "disabled" : ""}>
           <option value="0">— כל הכבלים —</option>
@@ -793,6 +921,25 @@ window.App = {
     log("עדכון הערות ארון", cab.no);
     save(); render(); toast("ההערות נשמרו");
   },
+  showQr(cabId) {
+    const cab = S.cabinets.find((x) => x.id === cabId);
+    const room = roomById(cab.roomId);
+    const p = projById(room.projectId);
+    const url = location.href.split("#")[0] + "#/cabinet/" + cab.id;
+    const host = document.getElementById("qrHost");
+    host.innerHTML = `<div class="overlay" onclick="App.hideQr()">
+      <div class="qr-tag" onclick="event.stopPropagation()">
+        <div style="font-size:26px;font-weight:800" class="num">${cab.no}</div>
+        <div class="sub">${esc(cab.name)}<br>${esc(p.name)} · ${esc(room.name)}</div>
+        <div class="qr-ph">בגרסה המלאה מודפס כאן קוד QR סריק שפותח ישירות את מסך הארון</div>
+        <div class="sub ltr" style="word-break:break-all;font-size:11px">${esc(url)}</div>
+        <div class="row mt" style="justify-content:center">
+          <button onclick="App.hideQr()">סגירה</button>
+        </div>
+      </div>
+    </div>`;
+  },
+  hideQr() { document.getElementById("qrHost").innerHTML = ""; },
   reportDev(cabId, cableId) {
     const desc = prompt("תיאור השינוי / החריגה ביחס לתוכנית:");
     if (!desc || !desc.trim()) return;
@@ -867,11 +1014,14 @@ window.App = {
     const s = S.sets.find((x) => x.id === sid);
     if (s.rows.some((r) => !rowValid(r))) { toast("תקנו קודם את השורות הלא תקינות", true); return; }
     if (!confirm(`להזין ${s.rows.length} גידים לפרויקט וליצור מהם רשימות עבודה?`)) return;
+    // ארונות חדשים מהמיפוי נכנסים לחדר "חדש מהמיפוי" בפרויקט הראשון
+    let mapRoom = S.rooms.find((r) => r.name === "חדש מהמיפוי");
+    if (!mapRoom) { mapRoom = { id: ++S.nextId.room, projectId: S.projects[0].id, name: "חדש מהמיפוי" }; S.rooms.push(mapRoom); }
     const byCab = {};
     s.rows.forEach((r) => ((byCab[r.cab] = byCab[r.cab] || {}), (byCab[r.cab][r.cable] = byCab[r.cab][r.cable] || []).push(r)));
     for (const cabNo in byCab) {
       let cab = S.cabinets.find((c) => c.no === cabNo);
-      if (!cab) { cab = { id: ++S.nextId.cabinet, no: cabNo, name: "ארון " + cabNo, loc: "", assignee: null, notes: "" }; S.cabinets.push(cab); }
+      if (!cab) { cab = { id: ++S.nextId.cabinet, roomId: mapRoom.id, no: cabNo, name: "ארון " + cabNo, assignee: null, notes: "" }; S.cabinets.push(cab); }
       for (const cableNo in byCab[cabNo]) {
         const rows = byCab[cabNo][cableNo];
         let cable = S.cables.find((c) => c.cabId === cab.id && c.no === cableNo);
@@ -882,7 +1032,7 @@ window.App = {
     s.status = "approved";
     log("אישור נתוני מיפוי והזנה לפרויקט", s.name);
     notify(`סט "${s.name}" אושר והוזן לפרויקט (${s.rows.length} גידים)`);
-    save(); location.hash = "#/cabinets"; render();
+    save(); location.hash = "#/project/" + S.projects[0].id; render();
     toast("הנתונים הוזנו — נוצרו רשימות עבודה חדשות");
   },
 };
