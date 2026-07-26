@@ -1,0 +1,983 @@
+<title>ניהול תחמושת גדודי</title>
+<style>
+  .app {
+    /* ground: warm olive-biased neutrals; accent: olive drab */
+    --bg: #f5f4ef;
+    --surface: #fdfdfb;
+    --surface-2: #eeede6;
+    --border: #d8d6cb;
+    --ink: #20231c;
+    --ink-2: #5b5e52;
+    --ink-3: #8b8e80;
+    --accent: #55663a;
+    --accent-ink: #ffffff;
+    --accent-soft: #e6e9dc;
+    --danger: #b83a3a;
+    --danger-soft: #f6e4e4;
+    --ok: #2e7d4f;
+    --s-container: #1baf7a;   /* series: במכולה */
+    --s-lebanon: #2a78d6;     /* series: בלבנון */
+    --s-consumed: #eb6834;    /* series: נצרך */
+    --radius: 6px;
+    color-scheme: light;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) .app {
+      --bg: #161713;
+      --surface: #1f211b;
+      --surface-2: #282a23;
+      --border: #3a3d33;
+      --ink: #eceada;
+      --ink-2: #b3b2a2;
+      --ink-3: #83836f;
+      --accent: #93a465;
+      --accent-ink: #1a1c14;
+      --accent-soft: #2c3122;
+      --danger: #e06c6c;
+      --danger-soft: #3a2626;
+      --ok: #6fbf8f;
+      --s-container: #199e70;
+      --s-lebanon: #3987e5;
+      --s-consumed: #d95926;
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] .app {
+    --bg: #161713; --surface: #1f211b; --surface-2: #282a23; --border: #3a3d33;
+    --ink: #eceada; --ink-2: #b3b2a2; --ink-3: #83836f;
+    --accent: #93a465; --accent-ink: #1a1c14; --accent-soft: #2c3122;
+    --danger: #e06c6c; --danger-soft: #3a2626; --ok: #6fbf8f;
+    --s-container: #199e70; --s-lebanon: #3987e5; --s-consumed: #d95926;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] .app {
+    --bg: #f5f4ef; --surface: #fdfdfb; --surface-2: #eeede6; --border: #d8d6cb;
+    --ink: #20231c; --ink-2: #5b5e52; --ink-3: #8b8e80;
+    --accent: #55663a; --accent-ink: #ffffff; --accent-soft: #e6e9dc;
+    --danger: #b83a3a; --danger-soft: #f6e4e4; --ok: #2e7d4f;
+    --s-container: #1baf7a; --s-lebanon: #2a78d6; --s-consumed: #eb6834;
+    color-scheme: light;
+  }
+
+  .app {
+    font-family: "Segoe UI", "Heebo", "Arial Hebrew", Arial, sans-serif;
+    background: var(--bg); color: var(--ink);
+    min-height: 100vh; margin: 0; line-height: 1.45;
+  }
+  .app * { box-sizing: border-box; }
+  .app button { font: inherit; cursor: pointer; }
+  .app input, .app select, .app textarea {
+    font: inherit; color: var(--ink); background: var(--surface);
+    border: 1px solid var(--border); border-radius: var(--radius);
+    padding: 7px 10px; width: 100%;
+  }
+  .app input:focus-visible, .app select:focus-visible, .app textarea:focus-visible,
+  .app button:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+  .hdr {
+    background: var(--accent); color: var(--accent-ink);
+    padding: 14px 20px 0; position: sticky; top: 0; z-index: 20;
+    box-shadow: 0 1px 6px rgba(0,0,0,.18);
+  }
+  .hdr-row { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; max-width: 1120px; margin: 0 auto; }
+  .hdr h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: .02em; }
+  .hdr .sub { font-size: 13px; opacity: .85; }
+  .tabs { display: flex; gap: 4px; max-width: 1120px; margin: 10px auto 0; flex-wrap: wrap; }
+  .tabs button {
+    border: none; background: transparent; color: var(--accent-ink);
+    padding: 9px 16px; border-radius: var(--radius) var(--radius) 0 0;
+    font-size: 14px; opacity: .82;
+  }
+  .tabs button.on { background: var(--bg); color: var(--ink); opacity: 1; font-weight: 600; }
+  .tabs button:hover:not(.on) { opacity: 1; background: rgba(255,255,255,.12); }
+
+  .main { max-width: 1120px; margin: 0 auto; padding: 18px 20px 60px; }
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: var(--radius); padding: 16px 18px; margin-bottom: 16px;
+  }
+  .card h2 { margin: 0 0 4px; font-size: 16px; }
+  .card .note { color: var(--ink-2); font-size: 13px; margin: 0 0 12px; }
+
+  .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
+  .kpi { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 12px 14px; }
+  .kpi .lbl { font-size: 12px; color: var(--ink-2); letter-spacing: .03em; }
+  .kpi .val { font-size: 24px; font-weight: 700; font-variant-numeric: tabular-nums; margin-top: 2px; }
+  .kpi .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-inline-start: 6px; vertical-align: 1px; }
+
+  .legend { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--ink-2); margin: 0 0 10px; }
+  .legend span::before { content: ""; display: inline-block; width: 11px; height: 11px; border-radius: 3px; margin-inline-end: 6px; vertical-align: -1px; }
+  .legend .lg-c::before { background: var(--s-container); }
+  .legend .lg-l::before { background: var(--s-lebanon); }
+  .legend .lg-x::before { background: var(--s-consumed); }
+
+  .tbl-wrap { overflow-x: auto; }
+  table.tbl { border-collapse: collapse; width: 100%; font-size: 14px; }
+  .tbl th {
+    text-align: right; font-size: 12px; color: var(--ink-2); font-weight: 600;
+    letter-spacing: .03em; padding: 6px 10px; border-bottom: 2px solid var(--border);
+    white-space: nowrap;
+  }
+  .tbl td { padding: 7px 10px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .tbl td.num { font-variant-numeric: tabular-nums; text-align: left; direction: ltr; }
+  .tbl tr.cat-row td {
+    background: var(--surface-2); font-weight: 700; font-size: 13px;
+    letter-spacing: .04em; color: var(--ink-2); padding: 5px 10px;
+  }
+  .tbl td.neg { color: var(--danger); font-weight: 700; }
+  .meter { display: flex; gap: 2px; width: 170px; height: 12px; border-radius: 4px; overflow: hidden; background: var(--surface-2); }
+  .meter div { height: 100%; min-width: 0; }
+  .meter .m-c { background: var(--s-container); }
+  .meter .m-l { background: var(--s-lebanon); }
+  .meter .m-x { background: var(--s-consumed); }
+  .chk { color: var(--ok); font-weight: 700; }
+  .chk.bad { color: var(--danger); }
+
+  .frm { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 12px; }
+  .frm .full { grid-column: 1 / -1; }
+  .frm label { display: block; font-size: 12.5px; color: var(--ink-2); margin-bottom: 4px; font-weight: 600; }
+  .hint { font-size: 12px; color: var(--ink-3); margin-top: 3px; }
+  .btn {
+    background: var(--accent); color: var(--accent-ink); border: none;
+    border-radius: var(--radius); padding: 9px 22px; font-weight: 600; font-size: 14px;
+  }
+  .btn:hover { filter: brightness(1.08); }
+  .btn.sec { background: var(--surface-2); color: var(--ink); border: 1px solid var(--border); font-weight: 500; }
+  .btn.dng { background: var(--danger); color: #fff; }
+  .btn.sm { padding: 4px 12px; font-size: 13px; }
+  .actions { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
+
+  .msg { border-radius: var(--radius); padding: 9px 14px; font-size: 14px; margin-top: 12px; display: none; }
+  .msg.ok { display: block; background: var(--accent-soft); color: var(--ink); border: 1px solid var(--accent); }
+  .msg.err { display: block; background: var(--danger-soft); color: var(--danger); border: 1px solid var(--danger); }
+
+  .pill {
+    display: inline-block; padding: 2px 10px; border-radius: 99px; font-size: 12px; font-weight: 600;
+    background: var(--surface-2); color: var(--ink-2);
+  }
+  .pill.t-intake { background: color-mix(in srgb, var(--s-container) 18%, transparent); color: var(--ink); }
+  .pill.t-issue { background: color-mix(in srgb, var(--s-lebanon) 18%, transparent); color: var(--ink); }
+  .pill.t-return { background: var(--surface-2); color: var(--ink); }
+  .pill.t-consume { background: color-mix(in srgb, var(--s-consumed) 20%, transparent); color: var(--ink); }
+
+  .co-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
+  .co-card { border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); padding: 12px 14px; }
+  .co-card h3 { margin: 0; font-size: 15px; }
+  .co-card .loc { font-size: 12.5px; color: var(--ink-2); margin: 1px 0 8px; }
+  .co-card ul { margin: 0; padding: 0; list-style: none; font-size: 13.5px; }
+  .co-card li { display: flex; justify-content: space-between; padding: 3px 0; border-bottom: 1px dashed var(--border); }
+  .co-card li:last-child { border-bottom: none; }
+  .co-card li b { font-variant-numeric: tabular-nums; }
+
+  .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 12px; }
+  .toolbar input[type=search] { max-width: 260px; }
+  .toolbar select { width: auto; }
+  .muted { color: var(--ink-3); font-size: 12.5px; }
+  .del-x { background: none; border: none; color: var(--ink-3); font-size: 15px; padding: 2px 6px; border-radius: 4px; }
+  .del-x:hover { color: var(--danger); background: var(--danger-soft); }
+  .del-x.armed { color: #fff; background: var(--danger); }
+
+  @media (max-width: 640px) {
+    .hdr h1 { font-size: 17px; }
+    .main { padding: 14px 12px 50px; }
+    .meter { width: 110px; }
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .tab-pane { animation: fadein .15s ease; }
+    @keyframes fadein { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+
+<div class="app" dir="rtl" lang="he">
+  <header class="hdr">
+    <div class="hdr-row">
+      <h1>ניהול תחמושת גדודי</h1>
+      <span class="sub">מכולה חצרות יסף · כוחות בלבנון · תמונת מצב לחטיבה</span>
+    </div>
+    <nav class="tabs" id="tabs">
+      <button data-tab="dash" class="on">דשבורד</button>
+      <button data-tab="intake">חתימת מלאי</button>
+      <button data-tab="issue">ניפוק ללבנון</button>
+      <button data-tab="lebanon">כוחות בלבנון</button>
+      <button data-tab="log">יומן וניהול</button>
+    </nav>
+  </header>
+
+  <main class="main">
+
+    <!-- ============ דשבורד ============ -->
+    <section class="tab-pane" id="pane-dash">
+      <div class="kpis" id="kpis"></div>
+      <div class="card">
+        <h2>תמונת מלאי לפי פריט</h2>
+        <p class="note">סה"כ חתום = במכולה (חצרות יסף) + בלבנון + נצרך. הסימן ✓ מאשר שהמאזן סגור.</p>
+        <div class="legend">
+          <span class="lg-c">במכולה — חצרות יסף</span>
+          <span class="lg-l">בלבנון — על החיילים</span>
+          <span class="lg-x">נצרך (ירי)</span>
+        </div>
+        <div class="toolbar">
+          <input type="search" id="dash-search" placeholder="חיפוש פריט…">
+        </div>
+        <div class="tbl-wrap"><table class="tbl" id="dash-tbl"></table></div>
+      </div>
+      <div class="card">
+        <h2>בלבנון — פירוט לפי פלוגות</h2>
+        <p class="note">אחזקות נוכחיות בידי הכוחות, לפי פלוגה ומיקום.</p>
+        <div class="co-grid" id="dash-companies"></div>
+      </div>
+    </section>
+
+    <!-- ============ חתימת מלאי ============ -->
+    <section class="tab-pane" id="pane-intake" hidden>
+      <div class="card">
+        <h2>חתימת מלאי חדש</h2>
+        <p class="note">חייל לוגיסטיקה שמושך תחמושת מזין כאן — הכמות נכנסת ישירות למכולה בחצרות יסף ומצטרפת לסה"כ החתום.</p>
+        <form id="frm-intake" class="frm">
+          <div>
+            <label for="in-item">פריט</label>
+            <select id="in-item" required></select>
+          </div>
+          <div id="in-new-wrap" hidden>
+            <label for="in-new-name">שם פריט חדש</label>
+            <input id="in-new-name" placeholder="לדוגמה: פצמ&quot;ר 81 נפיץ">
+          </div>
+          <div id="in-new-cat-wrap" hidden>
+            <label for="in-new-cat">קטגוריה</label>
+            <select id="in-new-cat"></select>
+          </div>
+          <div>
+            <label for="in-qty">כמות</label>
+            <input id="in-qty" type="number" min="1" step="1" required inputmode="numeric">
+          </div>
+          <div>
+            <label for="in-date">תאריך חתימה</label>
+            <input id="in-date" type="date" required>
+          </div>
+          <div>
+            <label for="in-source">מקור</label>
+            <select id="in-source">
+              <option>חצרות יסף</option>
+              <option>בילו</option>
+              <option>אחר</option>
+            </select>
+          </div>
+          <div>
+            <label for="in-person">נחתם ע"י (שם מלא)</label>
+            <input id="in-person" required placeholder="שם החותם / המקבל">
+          </div>
+          <div class="full">
+            <label for="in-notes">הערות</label>
+            <input id="in-notes" placeholder="אופציונלי">
+          </div>
+          <div class="full actions">
+            <button class="btn" type="submit">חתום והכנס למכולה</button>
+            <span class="muted">נשמר אוטומטית במכשיר זה</span>
+          </div>
+        </form>
+        <div class="msg" id="msg-intake"></div>
+      </div>
+    </section>
+
+    <!-- ============ ניפוק ללבנון ============ -->
+    <section class="tab-pane" id="pane-issue" hidden>
+      <div class="card">
+        <h2>ניפוק ללבנון</h2>
+        <p class="note">הכמות יוצאת ממלאי המכולה בחצרות יסף ועוברת לאחזקת הפלוגה בלבנון.</p>
+        <form id="frm-issue" class="frm">
+          <div>
+            <label for="is-item">פריט</label>
+            <select id="is-item" required></select>
+            <div class="hint" id="is-avail"></div>
+          </div>
+          <div>
+            <label for="is-qty">כמות</label>
+            <input id="is-qty" type="number" min="1" step="1" required inputmode="numeric">
+          </div>
+          <div>
+            <label for="is-company">פלוגה</label>
+            <select id="is-company" required></select>
+          </div>
+          <div id="is-new-co-wrap" hidden>
+            <label for="is-new-co">שם פלוגה חדשה</label>
+            <input id="is-new-co" placeholder="שם הפלוגה">
+          </div>
+          <div>
+            <label for="is-location">מיקום</label>
+            <select id="is-location"></select>
+          </div>
+          <div id="is-new-loc-wrap" hidden>
+            <label for="is-new-loc">מיקום חדש</label>
+            <input id="is-new-loc" placeholder="שם המיקום">
+          </div>
+          <div>
+            <label for="is-person">שם מלא של המנפק</label>
+            <input id="is-person" required placeholder="המנפק בפועל">
+          </div>
+          <div>
+            <label for="is-date">תאריך ניפוק</label>
+            <input id="is-date" type="date" required>
+          </div>
+          <div class="full">
+            <label for="is-notes">הערות</label>
+            <input id="is-notes" placeholder="אופציונלי">
+          </div>
+          <div class="full actions">
+            <button class="btn" type="submit">נפק ללבנון</button>
+          </div>
+        </form>
+        <div class="msg" id="msg-issue"></div>
+      </div>
+    </section>
+
+    <!-- ============ כוחות בלבנון ============ -->
+    <section class="tab-pane" id="pane-lebanon" hidden>
+      <div class="card">
+        <h2>דיווח מהכוח — ירי או החזרה</h2>
+        <p class="note">דיווח ירי מוריד מאחזקת הפלוגה ונרשם כצריכה. החזרה מעבירה מהפלוגה חזרה למכולה בחצרות יסף.</p>
+        <form id="frm-field" class="frm">
+          <div>
+            <label for="fd-type">סוג דיווח</label>
+            <select id="fd-type">
+              <option value="consume">דיווח ירי (צריכה)</option>
+              <option value="return">החזרה למכולה</option>
+            </select>
+          </div>
+          <div>
+            <label for="fd-company">פלוגה</label>
+            <select id="fd-company" required></select>
+          </div>
+          <div>
+            <label for="fd-item">פריט</label>
+            <select id="fd-item" required></select>
+            <div class="hint" id="fd-avail"></div>
+          </div>
+          <div>
+            <label for="fd-qty">כמות</label>
+            <input id="fd-qty" type="number" min="1" step="1" required inputmode="numeric">
+          </div>
+          <div>
+            <label for="fd-person">שם המדווח</label>
+            <input id="fd-person" required placeholder="שם מלא">
+          </div>
+          <div>
+            <label for="fd-date">תאריך</label>
+            <input id="fd-date" type="date" required>
+          </div>
+          <div class="full">
+            <label for="fd-notes">הערות</label>
+            <input id="fd-notes" placeholder="אופציונלי">
+          </div>
+          <div class="full actions">
+            <button class="btn" type="submit">שמור דיווח</button>
+          </div>
+        </form>
+        <div class="msg" id="msg-field"></div>
+      </div>
+      <div class="card">
+        <h2>אחזקות נוכחיות בלבנון</h2>
+        <div class="co-grid" id="leb-companies"></div>
+      </div>
+    </section>
+
+    <!-- ============ יומן וניהול ============ -->
+    <section class="tab-pane" id="pane-log" hidden>
+      <div class="card">
+        <h2>יומן תנועות (מאחורי הקלעים)</h2>
+        <p class="note">כל חתימה, ניפוק, ירי והחזרה — עם תאריך, שם מלא והערות. המידע כאן תפעולי ואינו חלק מתצוגת החטיבה.</p>
+        <div class="toolbar">
+          <select id="log-filter">
+            <option value="">כל התנועות</option>
+            <option value="intake">חתימות מלאי</option>
+            <option value="issue">ניפוקים ללבנון</option>
+            <option value="consume">דיווחי ירי</option>
+            <option value="return">החזרות</option>
+          </select>
+          <input type="search" id="log-search" placeholder="חיפוש חופשי…">
+        </div>
+        <div class="tbl-wrap"><table class="tbl" id="log-tbl"></table></div>
+      </div>
+
+      <div class="card">
+        <h2>פלוגות ומיקומים</h2>
+        <div class="tbl-wrap"><table class="tbl" id="co-tbl"></table></div>
+        <form id="frm-co" class="frm" style="margin-top:12px">
+          <div><label for="co-name">פלוגה</label><input id="co-name" placeholder="שם פלוגה (קיימת או חדשה)" required></div>
+          <div><label for="co-loc">מיקום להוספה</label><input id="co-loc" placeholder="שם מיקום" required></div>
+          <div class="actions"><button class="btn sec" type="submit">הוסף</button></div>
+        </form>
+      </div>
+
+      <div class="card">
+        <h2>ייצוא, גיבוי ושחזור</h2>
+        <p class="note">הנתונים נשמרים אוטומטית בדפדפן של המכשיר הזה בלבד. להעברה בין מכשירים או לגיבוי — ייצאו קובץ גיבוי וייבאו אותו במכשיר השני.</p>
+        <div class="actions">
+          <button class="btn" id="btn-export-summary">ייצוא תמונת מצב לחטיבה (CSV)</button>
+          <button class="btn sec" id="btn-export-log">ייצוא יומן מלא (CSV)</button>
+          <button class="btn sec" id="btn-backup">גיבוי נתונים (JSON)</button>
+          <label class="btn sec" style="display:inline-block">שחזור מגיבוי…<input type="file" id="file-restore" accept=".json,application/json" hidden></label>
+        </div>
+        <div class="actions">
+          <button class="btn dng" id="btn-reset">איפוס כל הנתונים</button>
+          <span class="muted">לחיצה כפולה נדרשת לאישור</span>
+        </div>
+        <div class="msg" id="msg-admin"></div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+  var STORE_KEY = "battalion_ammo_v1";
+
+  /* ---------- seed: הנתונים מקובץ המקור ---------- */
+  function seedData() {
+    var cats = ["פצצות מרגמה 120", "נ\"ט", "מטולים", "רימונים", "תחמושת קלה", "אחר"];
+    var items = [
+      ["פצמ\"ר 120 נפיץ", "פצצות מרגמה 120"],
+      ["פצמ\"ר 120 עשן", "פצצות מרגמה 120"],
+      ["פצמ\"ר 120 תאורה", "פצצות מרגמה 120"],
+      ["מטאדור", "נ\"ט"],
+      ["לאו", "נ\"ט"],
+      ["גיל יום", "נ\"ט"],
+      ["גיל סימן 2", "נ\"ט"],
+      ["מטול נפיץ", "מטולים"],
+      ["מטול תאורה", "מטולים"],
+      ["מטול עשן", "מטולים"],
+      ["מקל\"ר", "מטולים"],
+      ["רימון רסס 26ב'", "רימונים"],
+      ["רימון עשן אפור", "רימונים"],
+      ["רימון עשן כחול", "רימונים"],
+      ["רימון עשן צהוב", "רימונים"],
+      ["רימון עשן אדום", "רימונים"],
+      ["רימון עשן ירוק", "רימונים"],
+      ["7.62 משורשר", "תחמושת קלה"],
+      ["5.56 משורשר", "תחמושת קלה"],
+      ["5.56 דור ב'", "תחמושת קלה"],
+      ["ליאה", "תחמושת קלה"]
+    ].map(function (r, i) { return { id: "it" + (i + 1), name: r[0], cat: r[1] }; });
+
+    var byName = {};
+    items.forEach(function (it) { byName[it.name] = it.id; });
+
+    // חתימות פתיחה מקובץ המקור: [שם פריט, כמות, מקור, תאריך ISO, נחתם ע"י]
+    var opening = [
+      ["פצמ\"ר 120 נפיץ", 192, "בילו"], ["פצמ\"ר 120 עשן", 37, "בילו"], ["פצמ\"ר 120 תאורה", 36, "בילו"],
+      ["מטאדור", 4, "בילו"], ["לאו", 18, "בילו"], ["גיל יום", 5, "בילו"], ["גיל סימן 2", 2, "בילו"],
+      ["מטול נפיץ", 481, "בילו"], ["מטול תאורה", 575, "בילו"], ["מטול עשן", 357, "בילו"],
+      ["רימון רסס 26ב'", 624, "בילו"],
+      ["7.62 משורשר", 70100, "בילו"], ["5.56 משורשר", 72200, "בילו"], ["5.56 דור ב'", 299200, "בילו"],
+      ["רימון עשן אפור", 88, "בילו"], ["רימון עשן כחול", 80, "בילו"], ["רימון עשן צהוב", 75, "בילו"],
+      ["רימון עשן אדום", 80, "בילו"], ["רימון עשן ירוק", 80, "בילו"],
+      ["ליאה", 12000, "חצרות יסף"],
+      ["מקל\"ר", 192, "חצרות יסף", "2026-07-19", "אדם ממן"],
+      ["7.62 משורשר", 22160, "חצרות יסף", "2026-07-19", "אורי עוזיאל"]
+    ];
+    var tx = opening.map(function (r, i) {
+      return {
+        id: "seed" + (i + 1), type: "intake", item: byName[r[0]], qty: r[1],
+        date: r[3] || "", person: r[4] || "", source: r[2],
+        company: "", location: "", notes: "יתרת פתיחה מקובץ המקור", ts: i
+      };
+    });
+
+    return {
+      v: 1,
+      cats: cats,
+      items: items,
+      companies: [
+        { name: "א", locs: ["חניתה"] },
+        { name: "ב", locs: ["מגדל זון", "טיר חרפא"] },
+        { name: "ג", locs: ["מגדל זון"] },
+        { name: "מסייעת", locs: ["מרגמות", "אוהד"] },
+        { name: "חפ\"ק מג\"ד", locs: ["מגדל זון"] },
+        { name: "פתן", locs: ["מגדל זון"] },
+        { name: "שריון", locs: ["טיר חרפא", "מגדל זון"] }
+      ],
+      tx: tx,
+      nextId: 1
+    };
+  }
+
+  /* ---------- state ---------- */
+  var S;
+  function load() {
+    try {
+      var raw = localStorage.getItem(STORE_KEY);
+      S = raw ? JSON.parse(raw) : seedData();
+    } catch (e) { S = seedData(); }
+    if (!S || !S.items) S = seedData();
+  }
+  function save() {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(S)); } catch (e) { /* storage unavailable */ }
+  }
+  function newId() { return "tx" + (S.nextId++) + "_" + Math.floor(performance.now()); }
+
+  /* ---------- derived stats ---------- */
+  function stats() {
+    var per = {};
+    S.items.forEach(function (it) {
+      per[it.id] = { item: it, signed: 0, container: 0, lebanon: 0, consumed: 0, byCo: {}, last30: 0 };
+    });
+    var cutoff = new Date(); cutoff.setDate(cutoff.getDate() - 30);
+    S.tx.forEach(function (t) {
+      var p = per[t.item]; if (!p) return;
+      var q = t.qty;
+      if (t.type === "intake") {
+        p.signed += q; p.container += q;
+        if (t.date && new Date(t.date) >= cutoff) p.last30 += q;
+      } else if (t.type === "issue") {
+        p.container -= q; p.lebanon += q;
+        co(p, t.company).qty += q; co(p, t.company).loc = t.location || co(p, t.company).loc;
+      } else if (t.type === "return") {
+        p.container += q; p.lebanon -= q; co(p, t.company).qty -= q;
+      } else if (t.type === "consume") {
+        p.lebanon -= q; p.consumed += q; co(p, t.company).qty -= q;
+      }
+    });
+    return per;
+    function co(p, name) {
+      if (!p.byCo[name]) p.byCo[name] = { qty: 0, loc: "" };
+      return p.byCo[name];
+    }
+  }
+
+  /* ---------- helpers ---------- */
+  function $(id) { return document.getElementById(id); }
+  function fmt(n) { return (n || 0).toLocaleString("he-IL"); }
+  function fmtDate(iso) {
+    if (!iso) return "—";
+    var p = iso.split("-");
+    return p.length === 3 ? p[2] + "." + p[1] + "." + p[0].slice(2) : iso;
+  }
+  function today() {
+    var d = new Date(), m = String(d.getMonth() + 1).padStart(2, "0"), day = String(d.getDate()).padStart(2, "0");
+    return d.getFullYear() + "-" + m + "-" + day;
+  }
+  function esc(s) {
+    return String(s == null ? "" : s).replace(/[&<>"]/g, function (c) {
+      return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c];
+    });
+  }
+  function itemName(id) {
+    var it = S.items.find(function (x) { return x.id === id; });
+    return it ? it.name : id;
+  }
+  function showMsg(id, text, isErr) {
+    var el = $(id);
+    el.textContent = text;
+    el.className = "msg " + (isErr ? "err" : "ok");
+    clearTimeout(el._t);
+    el._t = setTimeout(function () { el.className = "msg"; }, 6000);
+  }
+  var TYPE_HE = { intake: "חתימת מלאי", issue: "ניפוק ללבנון", consume: "דיווח ירי", return: "החזרה למכולה" };
+
+  /* ---------- tabs ---------- */
+  var currentTab = "dash";
+  $("tabs").addEventListener("click", function (e) {
+    var b = e.target.closest("button"); if (!b) return;
+    currentTab = b.dataset.tab;
+    document.querySelectorAll("#tabs button").forEach(function (x) { x.classList.toggle("on", x === b); });
+    document.querySelectorAll(".tab-pane").forEach(function (p) { p.hidden = p.id !== "pane-" + currentTab; });
+    renderAll();
+  });
+
+  /* ---------- render: dashboard ---------- */
+  function renderDash() {
+    var per = stats(), tot = { signed: 0, container: 0, lebanon: 0, consumed: 0, last30: 0 };
+    Object.keys(per).forEach(function (k) {
+      var p = per[k];
+      tot.signed += p.signed; tot.container += p.container;
+      tot.lebanon += p.lebanon; tot.consumed += p.consumed; tot.last30 += p.last30;
+    });
+    $("kpis").innerHTML =
+      kpi("סה\"כ חתום (יח')", tot.signed, "") +
+      kpi("במכולה — חצרות יסף", tot.container, "var(--s-container)") +
+      kpi("בלבנון — על החיילים", tot.lebanon, "var(--s-lebanon)") +
+      kpi("נצרך (ירי)", tot.consumed, "var(--s-consumed)") +
+      kpi("נחתם ב-30 הימים האחרונים", tot.last30, "");
+    function kpi(lbl, val, dot) {
+      return '<div class="kpi"><div class="lbl">' + lbl +
+        (dot ? '<span class="dot" style="background:' + dot + '"></span>' : "") +
+        '</div><div class="val">' + fmt(val) + "</div></div>";
+    }
+
+    var q = ($("dash-search").value || "").trim();
+    var rows = '<tr><th>פריט</th><th>סה"כ חתום</th><th>במכולה</th><th>בלבנון</th><th>נצרך</th><th>התפלגות</th><th>מאזן</th></tr>';
+    S.cats.forEach(function (cat) {
+      var inCat = S.items.filter(function (it) {
+        return it.cat === cat && (!q || it.name.indexOf(q) >= 0) && per[it.id].signed > 0;
+      });
+      if (!inCat.length) return;
+      rows += '<tr class="cat-row"><td colspan="7">' + esc(cat) + "</td></tr>";
+      inCat.forEach(function (it) {
+        var p = per[it.id];
+        var ok = p.container + p.lebanon + p.consumed === p.signed && p.container >= 0 && p.lebanon >= 0;
+        var s = Math.max(p.signed, 1);
+        rows += "<tr><td>" + esc(it.name) + "</td>" +
+          '<td class="num"><b>' + fmt(p.signed) + "</b></td>" +
+          '<td class="num' + (p.container < 0 ? " neg" : "") + '">' + fmt(p.container) + "</td>" +
+          '<td class="num' + (p.lebanon < 0 ? " neg" : "") + '">' + fmt(p.lebanon) + "</td>" +
+          '<td class="num">' + fmt(p.consumed) + "</td>" +
+          '<td><div class="meter" role="img" aria-label="במכולה ' + fmt(p.container) + ', בלבנון ' + fmt(p.lebanon) + ', נצרך ' + fmt(p.consumed) + '">' +
+            seg("m-c", p.container / s, "במכולה: " + fmt(p.container)) +
+            seg("m-l", p.lebanon / s, "בלבנון: " + fmt(p.lebanon)) +
+            seg("m-x", p.consumed / s, "נצרך: " + fmt(p.consumed)) +
+          "</div></td>" +
+          '<td class="chk' + (ok ? "" : " bad") + '">' + (ok ? "✓" : "✗ בדקו יומן") + "</td></tr>";
+      });
+    });
+    $("dash-tbl").innerHTML = rows;
+    function seg(cls, frac, tip) {
+      var w = Math.max(0, frac * 100);
+      return w > 0 ? '<div class="' + cls + '" style="width:' + w.toFixed(2) + '%" title="' + esc(tip) + '"></div>' : "";
+    }
+
+    $("dash-companies").innerHTML = companyCards(per);
+  }
+
+  function companyCards(per) {
+    var byCo = {};
+    Object.keys(per).forEach(function (k) {
+      var p = per[k];
+      Object.keys(p.byCo).forEach(function (coName) {
+        var e = p.byCo[coName];
+        if (e.qty === 0) return;
+        (byCo[coName] = byCo[coName] || []).push({ name: p.item.name, qty: e.qty });
+      });
+    });
+    var names = Object.keys(byCo);
+    if (!names.length) return '<p class="muted">אין כרגע אחזקות בלבנון — נפקו מהלשונית "ניפוק ללבנון".</p>';
+    return names.map(function (coName) {
+      var c = S.companies.find(function (x) { return x.name === coName; });
+      var locs = c ? c.locs.join(" · ") : "";
+      var lis = byCo[coName].map(function (r) {
+        return "<li><span>" + esc(r.name) + "</span><b" + (r.qty < 0 ? ' class="neg"' : "") + ">" + fmt(r.qty) + "</b></li>";
+      }).join("");
+      return '<div class="co-card"><h3>פלוגה ' + esc(coName) + "</h3>" +
+        '<div class="loc">' + esc(locs || "—") + "</div><ul>" + lis + "</ul></div>";
+    }).join("");
+  }
+
+  /* ---------- render: forms ---------- */
+  function fillItemSelect(sel, withNew, filterFn) {
+    var per = stats();
+    var opts = S.items.filter(function (it) { return !filterFn || filterFn(per[it.id]); })
+      .map(function (it) { return '<option value="' + it.id + '">' + esc(it.name) + "</option>"; });
+    if (withNew) opts.push('<option value="__new__">+ פריט חדש…</option>');
+    sel.innerHTML = opts.join("");
+  }
+  function fillCompanySelect(sel, withNew) {
+    var opts = S.companies.map(function (c) { return '<option value="' + esc(c.name) + '">' + esc(c.name) + "</option>"; });
+    if (withNew) opts.push('<option value="__new__">+ פלוגה חדשה…</option>');
+    sel.innerHTML = opts.join("");
+  }
+
+  function renderIntakeForm() {
+    fillItemSelect($("in-item"), true);
+    $("in-new-cat").innerHTML = S.cats.map(function (c) { return "<option>" + esc(c) + "</option>"; }).join("");
+    if (!$("in-date").value) $("in-date").value = today();
+  }
+  $("in-item").addEventListener("change", function () {
+    var isNew = this.value === "__new__";
+    $("in-new-wrap").hidden = !isNew;
+    $("in-new-cat-wrap").hidden = !isNew;
+  });
+  $("frm-intake").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var itemId = $("in-item").value;
+    if (itemId === "__new__") {
+      var nm = $("in-new-name").value.trim();
+      if (!nm) return showMsg("msg-intake", "יש להזין שם לפריט החדש", true);
+      if (S.items.some(function (x) { return x.name === nm; })) return showMsg("msg-intake", "פריט בשם הזה כבר קיים", true);
+      itemId = "it" + (S.items.length + 1) + "_" + S.tx.length;
+      S.items.push({ id: itemId, name: nm, cat: $("in-new-cat").value });
+    }
+    var qty = parseInt($("in-qty").value, 10);
+    if (!(qty > 0)) return showMsg("msg-intake", "כמות לא תקינה", true);
+    S.tx.push({
+      id: newId(), type: "intake", item: itemId, qty: qty,
+      date: $("in-date").value, person: $("in-person").value.trim(),
+      source: $("in-source").value, company: "", location: "",
+      notes: $("in-notes").value.trim(), ts: Date.now()
+    });
+    save();
+    this.reset(); $("in-new-wrap").hidden = true; $("in-new-cat-wrap").hidden = true;
+    renderAll();
+    showMsg("msg-intake", "נקלט: " + fmt(qty) + " × " + itemName(itemId) + " — נכנס למכולה בחצרות יסף");
+  });
+
+  function renderIssueForm() {
+    var keep = $("is-item").value;
+    fillItemSelect($("is-item"), false, function (p) { return p.container > 0; });
+    if (keep && [].some.call($("is-item").options, function (o) { return o.value === keep; })) $("is-item").value = keep;
+    var keepCo = $("is-company").value;
+    fillCompanySelect($("is-company"), true);
+    if (keepCo && keepCo !== "__new__") $("is-company").value = keepCo;
+    updateIssueHints();
+    if (!$("is-date").value) $("is-date").value = today();
+  }
+  function updateIssueHints() {
+    var per = stats(), id = $("is-item").value;
+    $("is-avail").textContent = per[id] ? "זמין במכולה: " + fmt(per[id].container) : "";
+    var isNewCo = $("is-company").value === "__new__";
+    $("is-new-co-wrap").hidden = !isNewCo;
+    var locSel = $("is-location");
+    if (isNewCo) {
+      locSel.innerHTML = '<option value="__new__">+ מיקום חדש…</option>';
+      $("is-new-loc-wrap").hidden = false;
+    } else {
+      var c = S.companies.find(function (x) { return x.name === $("is-company").value; });
+      var opts = (c ? c.locs : []).map(function (l) { return "<option>" + esc(l) + "</option>"; });
+      opts.push('<option value="__new__">+ מיקום חדש…</option>');
+      locSel.innerHTML = opts.join("");
+      $("is-new-loc-wrap").hidden = locSel.value !== "__new__";
+    }
+  }
+  $("is-item").addEventListener("change", updateIssueHints);
+  $("is-company").addEventListener("change", updateIssueHints);
+  $("is-location").addEventListener("change", function () {
+    $("is-new-loc-wrap").hidden = this.value !== "__new__";
+  });
+  $("frm-issue").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var per = stats(), itemId = $("is-item").value;
+    if (!itemId) return showMsg("msg-issue", "אין פריט זמין במכולה לניפוק", true);
+    var qty = parseInt($("is-qty").value, 10);
+    if (!(qty > 0)) return showMsg("msg-issue", "כמות לא תקינה", true);
+    if (qty > per[itemId].container)
+      return showMsg("msg-issue", "אין מספיק במכולה — זמין: " + fmt(per[itemId].container), true);
+
+    var coName = $("is-company").value;
+    if (coName === "__new__") {
+      coName = $("is-new-co").value.trim();
+      if (!coName) return showMsg("msg-issue", "יש להזין שם פלוגה", true);
+      if (!S.companies.some(function (c) { return c.name === coName; })) S.companies.push({ name: coName, locs: [] });
+    }
+    var loc = $("is-location").value;
+    if (loc === "__new__") {
+      loc = $("is-new-loc").value.trim();
+      if (!loc) return showMsg("msg-issue", "יש להזין מיקום", true);
+    }
+    var c = S.companies.find(function (x) { return x.name === coName; });
+    if (c && loc && c.locs.indexOf(loc) < 0) c.locs.push(loc);
+
+    S.tx.push({
+      id: newId(), type: "issue", item: itemId, qty: qty,
+      date: $("is-date").value, person: $("is-person").value.trim(),
+      source: "", company: coName, location: loc,
+      notes: $("is-notes").value.trim(), ts: Date.now()
+    });
+    save();
+    this.reset(); $("is-new-co-wrap").hidden = true; $("is-new-loc-wrap").hidden = true;
+    renderAll();
+    showMsg("msg-issue", "נופק לפלוגה " + coName + ": " + fmt(qty) + " × " + itemName(itemId));
+  });
+
+  function renderFieldForm() {
+    var keepCo = $("fd-company").value;
+    fillCompanySelect($("fd-company"), false);
+    if (keepCo) $("fd-company").value = keepCo;
+    updateFieldItemSelect();
+    if (!$("fd-date").value) $("fd-date").value = today();
+    $("leb-companies").innerHTML = companyCards(stats());
+  }
+  function updateFieldItemSelect() {
+    var per = stats(), coName = $("fd-company").value, keep = $("fd-item").value;
+    var opts = [];
+    S.items.forEach(function (it) {
+      var e = per[it.id].byCo[coName];
+      if (e && e.qty > 0) opts.push('<option value="' + it.id + '">' + esc(it.name) + "</option>");
+    });
+    $("fd-item").innerHTML = opts.join("");
+    if (keep && [].some.call($("fd-item").options, function (o) { return o.value === keep; })) $("fd-item").value = keep;
+    updateFieldHint();
+  }
+  function updateFieldHint() {
+    var per = stats(), coName = $("fd-company").value, id = $("fd-item").value;
+    var e = id && per[id] ? per[id].byCo[coName] : null;
+    $("fd-avail").textContent = e ? "בידי פלוגה " + coName + ": " + fmt(e.qty) : "לפלוגה זו אין אחזקות";
+  }
+  $("fd-company").addEventListener("change", updateFieldItemSelect);
+  $("fd-item").addEventListener("change", updateFieldHint);
+  $("frm-field").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var per = stats(), type = $("fd-type").value, coName = $("fd-company").value, itemId = $("fd-item").value;
+    if (!itemId) return showMsg("msg-field", "לפלוגה זו אין אחזקות לדיווח", true);
+    var qty = parseInt($("fd-qty").value, 10);
+    if (!(qty > 0)) return showMsg("msg-field", "כמות לא תקינה", true);
+    var held = per[itemId].byCo[coName] ? per[itemId].byCo[coName].qty : 0;
+    if (qty > held) return showMsg("msg-field", "הפלוגה מחזיקה רק " + fmt(held), true);
+    S.tx.push({
+      id: newId(), type: type, item: itemId, qty: qty,
+      date: $("fd-date").value, person: $("fd-person").value.trim(),
+      source: "", company: coName, location: "",
+      notes: $("fd-notes").value.trim(), ts: Date.now()
+    });
+    save();
+    this.reset(); renderAll();
+    showMsg("msg-field", (type === "consume" ? "נרשם ירי: " : "הוחזר למכולה: ") + fmt(qty) + " × " + itemName(itemId) + " (פלוגה " + coName + ")");
+  });
+
+  /* ---------- render: log & admin ---------- */
+  var armedDelete = null;
+  function renderLog() {
+    var filter = $("log-filter").value, q = ($("log-search").value || "").trim();
+    var rows = "<tr><th></th><th>סוג</th><th>תאריך</th><th>פריט</th><th>כמות</th><th>פלוגה</th><th>מיקום</th><th>מקור</th><th>שם מלא</th><th>הערות</th></tr>";
+    var list = S.tx.slice().reverse();
+    list.forEach(function (t) {
+      if (filter && t.type !== filter) return;
+      if (q) {
+        var hay = [itemName(t.item), t.person, t.company, t.location, t.notes, t.source, TYPE_HE[t.type]].join(" ");
+        if (hay.indexOf(q) < 0) return;
+      }
+      rows += "<tr>" +
+        '<td><button class="del-x' + (armedDelete === t.id ? " armed" : "") + '" data-del="' + t.id + '" title="מחיקת רשומה">✕</button></td>' +
+        '<td><span class="pill t-' + t.type + '">' + TYPE_HE[t.type] + "</span></td>" +
+        "<td>" + fmtDate(t.date) + "</td>" +
+        "<td>" + esc(itemName(t.item)) + "</td>" +
+        '<td class="num">' + fmt(t.qty) + "</td>" +
+        "<td>" + esc(t.company || "—") + "</td>" +
+        "<td>" + esc(t.location || "—") + "</td>" +
+        "<td>" + esc(t.source || "—") + "</td>" +
+        "<td>" + esc(t.person || "—") + "</td>" +
+        "<td>" + esc(t.notes || "") + "</td></tr>";
+    });
+    $("log-tbl").innerHTML = rows;
+
+    var coRows = "<tr><th>פלוגה</th><th>מיקומים</th></tr>";
+    S.companies.forEach(function (c) {
+      coRows += "<tr><td>" + esc(c.name) + "</td><td>" + esc(c.locs.join(" · ") || "—") + "</td></tr>";
+    });
+    $("co-tbl").innerHTML = coRows;
+  }
+  $("log-filter").addEventListener("change", renderLog);
+  $("log-search").addEventListener("input", renderLog);
+  $("dash-search").addEventListener("input", renderDash);
+  $("log-tbl").addEventListener("click", function (e) {
+    var b = e.target.closest("[data-del]"); if (!b) return;
+    var id = b.dataset.del;
+    if (armedDelete !== id) { armedDelete = id; renderLog(); return; }
+    S.tx = S.tx.filter(function (t) { return t.id !== id; });
+    armedDelete = null; save(); renderAll();
+    showMsg("msg-admin", "הרשומה נמחקה. שימו לב: מחיקה עלולה לפתוח את המאזן — בדקו את הדשבורד.");
+  });
+
+  $("frm-co").addEventListener("submit", function (e) {
+    e.preventDefault();
+    var name = $("co-name").value.trim(), loc = $("co-loc").value.trim();
+    if (!name || !loc) return;
+    var c = S.companies.find(function (x) { return x.name === name; });
+    if (!c) { c = { name: name, locs: [] }; S.companies.push(c); }
+    if (c.locs.indexOf(loc) < 0) c.locs.push(loc);
+    save(); this.reset(); renderLog();
+    showMsg("msg-admin", "עודכן: פלוגה " + name + " — " + loc);
+  });
+
+  /* ---------- export / backup ---------- */
+  function download(filename, content, isCsv) {
+    var data = isCsv ? "\uFEFF" + content : content;
+    if (window.claude && window.claude.downloads) {
+      window.claude.downloads.save({ filename: filename, data: data }).then(function () {
+        showMsg("msg-admin", "הקובץ נשמר: " + filename);
+      }).catch(function (err) {
+        if (err && err.code === "extension_not_enabled" && isCsv) {
+          // csv לא זמין בסביבה זו — נשמור כ-txt עם אותו תוכן
+          download(filename.replace(/\.csv$/, ".txt"), content, true);
+        } else if (err && err.code === "declined") {
+          showMsg("msg-admin", "השמירה בוטלה", true);
+        } else {
+          fallbackDownload(filename, data);
+        }
+      });
+    } else {
+      fallbackDownload(filename, data);
+    }
+  }
+  function fallbackDownload(filename, data) {
+    try {
+      var blob = new Blob([data], { type: "application/octet-stream" });
+      var a = document.createElement("a");
+      a.href = URL.createObjectURL(blob); a.download = filename;
+      document.body.appendChild(a); a.click();
+      setTimeout(function () { URL.revokeObjectURL(a.href); a.remove(); }, 500);
+      showMsg("msg-admin", "הקובץ ירד: " + filename);
+    } catch (e) { showMsg("msg-admin", "הורדה אינה זמינה בסביבה זו", true); }
+  }
+  function csvEsc(v) {
+    v = String(v == null ? "" : v);
+    return /[",\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
+  }
+  $("btn-export-summary").addEventListener("click", function () {
+    var per = stats();
+    var lines = ['פריט,קטגוריה,סה"כ חתום,במכולה חצרות יסף,בלבנון,נצרך,מאזן'];
+    S.items.forEach(function (it) {
+      var p = per[it.id]; if (!p.signed) return;
+      var ok = p.container + p.lebanon + p.consumed === p.signed;
+      lines.push([it.name, it.cat, p.signed, p.container, p.lebanon, p.consumed, ok ? "תקין" : "חריגה"].map(csvEsc).join(","));
+    });
+    lines.push("");
+    lines.push("בלבנון לפי פלוגות");
+    lines.push("פלוגה,פריט,כמות");
+    S.items.forEach(function (it) {
+      var p = per[it.id];
+      Object.keys(p.byCo).forEach(function (coName) {
+        if (p.byCo[coName].qty) lines.push([coName, it.name, p.byCo[coName].qty].map(csvEsc).join(","));
+      });
+    });
+    download("תמונת_מצב_תחמושת_" + today() + ".csv", lines.join("\n"), true);
+  });
+  $("btn-export-log").addEventListener("click", function () {
+    var lines = ["סוג,תאריך,פריט,כמות,פלוגה,מיקום,מקור,שם מלא,הערות"];
+    S.tx.forEach(function (t) {
+      lines.push([TYPE_HE[t.type], t.date, itemName(t.item), t.qty, t.company, t.location, t.source, t.person, t.notes].map(csvEsc).join(","));
+    });
+    download("יומן_תחמושת_" + today() + ".csv", lines.join("\n"), true);
+  });
+  $("btn-backup").addEventListener("click", function () {
+    download("גיבוי_תחמושת_" + today() + ".json", JSON.stringify(S, null, 1), false);
+  });
+  $("file-restore").addEventListener("change", function () {
+    var f = this.files[0]; if (!f) return;
+    var rd = new FileReader();
+    rd.onload = function () {
+      try {
+        var d = JSON.parse(rd.result);
+        if (!d || !d.items || !d.tx) throw new Error("bad");
+        S = d; save(); renderAll();
+        showMsg("msg-admin", "הגיבוי שוחזר בהצלחה (" + d.tx.length + " תנועות)");
+      } catch (e) { showMsg("msg-admin", "קובץ הגיבוי אינו תקין", true); }
+    };
+    rd.readAsText(f);
+    this.value = "";
+  });
+  var resetArmed = false;
+  $("btn-reset").addEventListener("click", function () {
+    if (!resetArmed) {
+      resetArmed = true; this.textContent = "בטוחים? לחצו שוב לאיפוס";
+      var self = this;
+      setTimeout(function () { resetArmed = false; self.textContent = "איפוס כל הנתונים"; }, 4000);
+      return;
+    }
+    S = seedData(); save(); resetArmed = false;
+    this.textContent = "איפוס כל הנתונים";
+    renderAll();
+    showMsg("msg-admin", "הנתונים אופסו ליתרות הפתיחה מקובץ המקור");
+  });
+
+  /* ---------- main render ---------- */
+  function renderAll() {
+    if (currentTab === "dash") renderDash();
+    else if (currentTab === "intake") renderIntakeForm();
+    else if (currentTab === "issue") renderIssueForm();
+    else if (currentTab === "lebanon") renderFieldForm();
+    else if (currentTab === "log") renderLog();
+  }
+
+  load();
+  save();
+  renderAll();
+})();
+</script>
