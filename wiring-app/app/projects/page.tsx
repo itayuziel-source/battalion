@@ -63,7 +63,10 @@ export default function ProjectsPage() {
     <AppShell>
       <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
         <h1 className="text-xl font-extrabold">📁 פרויקטים וסטי חיווט</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
+          <Link href="/import" className="rounded-lg border border-slate-300 bg-white px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50">
+            📥 ייבוא מקובץ JSON
+          </Link>
           <SecondaryButton onClick={() => setNewProjectOpen(true)}>+ פרויקט חדש</SecondaryButton>
           <PrimaryButton onClick={() => setNewSetOpen(true)}>⬆️ העלאת סט חיווט</PrimaryButton>
         </div>

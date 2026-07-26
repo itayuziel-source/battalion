@@ -3,7 +3,8 @@ import { jsonOk } from "@/lib/api-helpers";
 
 export async function GET() {
   const db = getDb();
-  const project = db.prepare("SELECT * FROM projects ORDER BY id LIMIT 1").get();
+  // הפרויקט הפעיל — האחרון שנוצר (למשל אחרי ייבוא סט חדש)
+  const project = db.prepare("SELECT * FROM projects ORDER BY id DESC LIMIT 1").get();
 
   const cabinets = db.prepare("SELECT status, COUNT(*) AS n FROM cabinets GROUP BY status").all() as { status: string; n: number }[];
   const byStatus = Object.fromEntries(cabinets.map((c) => [c.status, c.n]));
