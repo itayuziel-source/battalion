@@ -215,15 +215,28 @@
   .cargo-box { flex: 1; min-width: 280px; display: flex; flex-direction: column; }
   .cargo-box textarea { min-height: 130px; flex: 1; font-size: 14px; }
   .cargo-box label { font-size: 13px; font-weight: 800; color: var(--warn); }
-  .crew-box { flex: 1; min-width: 280px; }
-  .crew-box > label { font-size: 13px; font-weight: 800; color: var(--accent); display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-  .crew-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
   .crew-chip {
     display: inline-flex; align-items: center; gap: 4px; padding: 3px 6px 3px 10px;
     background: var(--accent-soft); color: var(--accent); border: 1px solid var(--accent);
     border-radius: 999px; font-size: 13px; font-weight: 700;
   }
   .crew-chip .btn { padding: 0 5px; font-size: 12px; border: none; background: transparent; color: var(--crit); }
+  .pool-wrap { margin-bottom: 4px; }
+  .pool {
+    display: flex; flex-wrap: wrap; gap: 6px; align-items: center;
+    padding: 10px 12px; background: var(--surface-2);
+    border: 1.5px dashed var(--line); border-radius: 9px;
+  }
+  .pool-label { font-size: 13px; font-weight: 700; color: var(--muted); margin-inline-end: 4px; }
+  .pool-label b { color: var(--accent); }
+  .pool-empty { font-size: 13px; color: var(--muted); }
+  .crew-cell { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; min-width: 230px; }
+  .crew-quick {
+    border: 1px solid var(--line); background: var(--surface); color: var(--accent);
+    border-radius: 999px; padding: 3px 8px; font-family: inherit; font-size: 12.5px;
+    font-weight: 700; max-width: 96px; cursor: pointer;
+  }
+  .crew-quick:focus { outline: 2px solid var(--accent); }
 
   /* ---------- Chips & badges ---------- */
   .chip {
@@ -455,49 +468,54 @@
     </div>
 
     <div class="card">
-      <h2>מצבת כח אדם למשימה <span class="hint">מי יוצא — ומי כבר משובץ לרכב</span></h2>
-      <div class="summary" id="peopleSummary" style="margin-bottom:12px"></div>
-      <div class="table-wrap">
-        <table>
-          <thead>
-            <tr>
-              <th>שם מלא</th>
-              <th>דרגה</th>
-              <th>תפקיד</th>
-              <th>טלפון</th>
-              <th>הערות</th>
-              <th>שיבוץ במשימה</th>
-              <th></th>
-            </tr>
-          </thead>
-          <tbody id="peopleBody"></tbody>
-        </table>
-      </div>
-      <div class="toolbar" style="margin-top:12px">
-        <button class="btn primary" id="addPerson">+ הוסף איש צוות</button>
-        <button class="btn" id="bulkToggle">📋 הוספת רשימה שלמה</button>
-      </div>
-      <div id="bulkBox" style="display:none; margin-top:12px">
-        <div class="field">
-          <label>שם בכל שורה. אפשר גם: שם, דרגה, תפקיד (מופרד בפסיקים)</label>
-          <textarea id="bulkNames" rows="5" placeholder="דני לוי, סמל, נהג&#10;רון כהן, רב&quot;ט, לוחם&#10;..."></textarea>
-        </div>
-        <button class="btn primary small" id="bulkAdd" style="margin-top:6px">הוסף את כולם</button>
-      </div>
-      <datalist id="peopleList"></datalist>
-      <datalist id="rolesList">
-        <option value="נהג"></option>
-        <option value="מפקד רכב"></option>
-        <option value="לוחם"></option>
-        <option value="חובש"></option>
-        <option value="קשר"></option>
-        <option value="קצין"></option>
-      </datalist>
-    </div>
+      <h2>שיבוץ רכבים והעמסה <span class="hint">מאגר האנשים למעלה — משבצים ישירות בשורת הרכב</span></h2>
 
-    <div class="card">
-      <h2>שיבוץ רכבים והעמסה <span class="hint">בחר רכבים מהצי, קבע סדר נסיעה ומלא שיבוץ</span></h2>
-      <div class="toolbar" style="margin-bottom:10px">
+      <div class="pool-wrap">
+        <div class="pool" id="peoplePool"></div>
+        <div class="toolbar" style="margin-top:8px">
+          <input id="quickPersonName" placeholder="הוספה מהירה — שם מלא" style="flex:1; min-width:160px; max-width:260px; border:1px solid var(--line); background:var(--surface-2); color:var(--ink); border-radius:7px; padding:7px 10px; font-family:inherit; font-size:14px">
+          <button class="btn small primary" id="quickPersonAdd">+ הוסף למאגר</button>
+          <button class="btn small" id="bulkToggle">📋 הוספת רשימה</button>
+          <button class="btn small" id="rosterToggle">⚙ ניהול מצבת (דרגות ותפקידים)</button>
+        </div>
+        <div id="bulkBox" style="display:none; margin-top:10px">
+          <div class="field">
+            <label>שם בכל שורה. אפשר גם: שם, דרגה, תפקיד (מופרד בפסיקים)</label>
+            <textarea id="bulkNames" rows="5" placeholder="דני לוי, סמל, נהג&#10;רון כהן, רב&quot;ט, לוחם&#10;..."></textarea>
+          </div>
+          <button class="btn primary small" id="bulkAdd" style="margin-top:6px">הוסף את כולם</button>
+        </div>
+        <div id="rosterBox" style="display:none; margin-top:10px">
+          <div class="table-wrap">
+            <table>
+              <thead>
+                <tr>
+                  <th>שם מלא</th>
+                  <th>דרגה</th>
+                  <th>תפקיד</th>
+                  <th>טלפון</th>
+                  <th>הערות</th>
+                  <th>שיבוץ במשימה</th>
+                  <th></th>
+                </tr>
+              </thead>
+              <tbody id="peopleBody"></tbody>
+            </table>
+          </div>
+          <button class="btn small" id="addPerson" style="margin-top:8px">+ הוסף שורה</button>
+        </div>
+        <datalist id="peopleList"></datalist>
+        <datalist id="rolesList">
+          <option value="נהג"></option>
+          <option value="מפקד רכב"></option>
+          <option value="לוחם"></option>
+          <option value="חובש"></option>
+          <option value="קשר"></option>
+          <option value="קצין"></option>
+        </datalist>
+      </div>
+
+      <div class="toolbar" style="margin:14px 0 10px">
         <select id="vehiclePicker"></select>
         <button class="btn primary small" id="addToConvoy">הוסף לשיירה</button>
         <button class="btn small" id="addAllActive">הוסף את כל הרכבים הכשירים</button>
@@ -510,7 +528,7 @@
               <th>רכב</th>
               <th>נהג</th>
               <th>מפקד רכב</th>
-              <th>אנשים / מקומות</th>
+              <th>צוות ברכב (נוסף לנהג ומפקד)</th>
               <th>דולבים</th>
               <th>סולר (ל')</th>
               <th>העמסה ופריטים</th>
@@ -848,7 +866,25 @@
     return set;
   }
 
+  function renderPeoplePool() {
+    var box = $('#peoplePool'); if (!box) return;
+    var asg = assignedNames();
+    var free = state.people.filter(function (p) { return p.name && !asg[String(p.name).trim()]; });
+    var assigned = state.people.filter(function (p) { return p.name && asg[String(p.name).trim()]; }).length;
+    box.innerHTML =
+      '<span class="pool-label">מאגר כח אדם · פנויים: <b>' + free.length + '</b> · משובצים: <b>' + assigned + '</b></span>' +
+      (free.length
+        ? free.map(function (p) {
+            var lbl = [p.rank, p.name].filter(Boolean).join(' ');
+            return '<span class="crew-chip" title="' + esc(p.role || '') + '">' + esc(lbl) + '</span>';
+          }).join('')
+        : (state.people.length
+            ? '<span class="pool-empty">כולם משובצים ✔</span>'
+            : '<span class="pool-empty">המאגר ריק — הוסיפו שם למטה או הדביקו רשימה</span>'));
+  }
+
   function renderPeople() {
+    renderPeoplePool();
     var tb = $('#peopleBody');
     if (!state.people.length) {
       tb.innerHTML = '<tr><td colspan="7"><div class="empty-note">המצבת ריקה — הוסיפו אנשים או הדביקו רשימה שלמה</div></td></tr>';
@@ -872,23 +908,6 @@
     $('#peopleList').innerHTML = state.people
       .filter(function (p) { return p.name; })
       .map(function (p) { return '<option value="' + esc(p.name) + '"></option>'; }).join('');
-    updatePeopleSummary();
-  }
-
-  function updatePeopleSummary() {
-    var asg = assignedNames();
-    var assigned = state.people.filter(function (p) { return p.name && asg[String(p.name).trim()]; }).length;
-    var totalSeats = 0;
-    state.mission.vehicles.forEach(function (mv) {
-      var v = fleetById(mv.fleetId);
-      if (v) totalSeats += seatsCap(mv, v);
-    });
-    var box = $('#peopleSummary');
-    if (box) box.innerHTML =
-      '<div class="stat"><div class="label">סה"כ במצבת</div><div class="value">' + state.people.length + '</div></div>' +
-      '<div class="stat"><div class="label">משובצים למשימה</div><div class="value">' + assigned + '</div></div>' +
-      '<div class="stat"><div class="label">פנויים</div><div class="value">' + (state.people.length - assigned) + '</div></div>' +
-      '<div class="stat"><div class="label">מקומות ישיבה בשיירה</div><div class="value">' + totalSeats + '</div></div>';
   }
 
   $('#peopleBody').addEventListener('input', function (e) {
@@ -941,8 +960,28 @@
     });
     $('#bulkNames').value = '';
     $('#bulkBox').style.display = 'none';
-    renderPeople(); save();
-    toast(added ? 'נוספו ' + added + ' אנשים למצבת' : 'לא נמצאו שמות ברשימה');
+    renderPeople(); renderConvoy(); save();
+    toast(added ? 'נוספו ' + added + ' אנשים למאגר' : 'לא נמצאו שמות ברשימה');
+  });
+
+  $('#rosterToggle').addEventListener('click', function () {
+    var box = $('#rosterBox');
+    box.style.display = box.style.display === 'none' ? 'block' : 'none';
+  });
+
+  function quickAddPerson() {
+    var inp = $('#quickPersonName');
+    var name = String(inp.value).trim();
+    if (!name) return;
+    state.people.push({ id: id(), name: name, rank: '', role: '', phone: '', notes: '' });
+    inp.value = '';
+    renderPeople(); renderConvoy(); save();
+    toast(name + ' נוסף למאגר');
+    inp.focus();
+  }
+  $('#quickPersonAdd').addEventListener('click', quickAddPerson);
+  $('#quickPersonName').addEventListener('keydown', function (e) {
+    if (e.key === 'Enter') { e.preventDefault(); quickAddPerson(); }
   });
 
   /* ---------------- Mission header fields ---------------- */
@@ -1097,42 +1136,31 @@
       '<label>פריטים שלא בדולב ונמצאים על הרכב</label>' +
       '<textarea data-f="cargo" placeholder="כל פריט שמועמס על הרכב מחוץ לדולבים — ציוד קשר, ג\'ריקנים, שקי ציוד, מטען חריג...&#10;שורה לכל פריט">' + esc(mv.cargo || '') + '</textarea>' +
       '</div>' +
-      crewBoxHTML(mv, v) +
+      '<div class="field" style="min-width:200px;max-width:240px">' +
+      '<label>מקומות ישיבה ברכב במשימה זו</label>' +
+      '<input data-f="seatOverride" type="number" min="1" value="' + seatsCap(mv, v) + '" style="max-width:90px;text-align:center">' +
+      '<span style="font-size:12px;color:var(--muted)">ברירת מחדל מהצי: ' + (v.seats != null ? v.seats : guessSeats(v.type)) + '. הגדילו אם נוספו מקומות.</span>' +
+      '</div>' +
       '</div>';
   }
 
-  function crewBoxHTML(mv, v) {
-    var cap = seatsCap(mv, v);
-    var used = seatsUsed(mv);
+  function crewCellHTML(mv, v) {
+    var used = seatsUsed(mv), cap = seatsCap(mv, v);
     var asg = assignedNames();
-    var freePeople = state.people.filter(function (p) {
-      return p.name && !asg[String(p.name).trim()];
-    });
-    var chips = (mv.crew || []).map(function (name, ci) {
-      return '<span class="crew-chip">' + esc(name) +
-        ' <button class="btn icon" data-crewrm="' + ci + '" title="הסר מהרכב">✕</button></span>';
-    }).join('');
-    return '<div class="field crew-box">' +
-      '<label>צוות ברכב — נוסף לנהג ולמפקד הרכב <span class="chip' + (used > cap ? ' crit' : ' neutral') + '">' + used + ' / ' + cap + ' מקומות</span></label>' +
-      '<div class="crew-chips">' + (chips || '<span style="color:var(--muted);font-size:13px">טרם שובצו נוסעים נוספים</span>') + '</div>' +
-      '<div class="toolbar" style="margin-top:8px">' +
-        '<select data-f="crewpick" style="min-width:150px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:6px 8px;font-family:inherit;font-size:13.5px">' +
-          (freePeople.length
-            ? freePeople.map(function (p) {
-                var lbl = [p.rank, p.name].filter(Boolean).join(' ') + (p.role ? ' · ' + p.role : '');
-                return '<option value="' + esc(p.name) + '">' + esc(lbl) + '</option>';
-              }).join('')
-            : '<option value="">— אין פנויים במצבת —</option>') +
-        '</select>' +
-        '<button class="btn small primary" data-act="crewadd"' + (freePeople.length ? '' : ' disabled') + '>+ שבץ מהמצבת</button>' +
-        '<input data-f="crewfree" list="peopleList" placeholder="או שם חופשי" style="width:130px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:6px 8px;font-family:inherit;font-size:13.5px">' +
-        '<button class="btn small" data-act="crewaddfree">+ הוסף</button>' +
-      '</div>' +
-      '<div class="toolbar" style="margin-top:8px;align-items:center">' +
-        '<label style="font-size:12.5px;font-weight:700;color:var(--muted)">מקומות ישיבה ברכב במשימה זו:</label>' +
-        '<input data-f="seatOverride" type="number" min="1" value="' + cap + '" class="narrow" style="width:64px;border:1px solid var(--line);background:var(--surface);color:var(--ink);border-radius:6px;padding:5px 8px;text-align:center;font-family:inherit">' +
-        '<span style="font-size:12px;color:var(--muted)">(ברירת מחדל מהצי: ' + (v.seats != null ? v.seats : guessSeats(v.type)) + '. אפשר להגדיל אם נוספו מקומות)</span>' +
-      '</div>' +
+    var free = state.people.filter(function (p) { return p.name && !asg[String(p.name).trim()]; });
+    return '<div class="crew-cell">' +
+      '<span class="chip seats-chip' + (used > cap ? ' crit' : ' neutral') + '" title="אנשים / מקומות ישיבה">' + used + ' / ' + cap + '</span>' +
+      (mv.crew || []).map(function (name, ci) {
+        return '<span class="crew-chip">' + esc(name) +
+          ' <button class="btn icon" data-crewrm="' + ci + '" title="הסר מהרכב">✕</button></span>';
+      }).join('') +
+      '<select data-f="crewquick" class="crew-quick" title="שיבוץ נוסע לרכב">' +
+        '<option value="">+ שבץ</option>' +
+        free.map(function (p) {
+          return '<option value="' + esc(p.name) + '">' + esc([p.rank, p.name].filter(Boolean).join(' ')) + '</option>';
+        }).join('') +
+        '<option value="__free__">✎ שם חופשי...</option>' +
+      '</select>' +
       '</div>';
   }
 
@@ -1173,7 +1201,7 @@
           (v.active === false ? ' <span class="chip crit">מושבת</span>' : '') + '</td>' +
         '<td><input data-f="driver" list="peopleList" value="' + esc(mv.driver) + '" placeholder="שם הנהג" style="min-width:110px"></td>' +
         '<td><input data-f="vcommander" list="peopleList" value="' + esc(mv.vcommander) + '" placeholder="מפקד הרכב" style="min-width:110px"></td>' +
-        '<td style="white-space:nowrap"><span class="chip seats-chip' + (seatsUsed(mv) > seatsCap(mv, v) ? ' crit' : ' neutral') + '">' + seatsUsed(mv) + ' / ' + seatsCap(mv, v) + '</span></td>' +
+        '<td>' + crewCellHTML(mv, v) + '</td>' +
         '<td style="white-space:nowrap">' + (v.dolevCap > 0
             ? '<span class="chip neutral dolev-count">' + cnt + ' / ' + v.dolevCap + '</span>'
             : '<span style="color:var(--muted)">—</span>') + '</td>' +
@@ -1217,8 +1245,23 @@
       var n = parseInt(e.target.value, 10);
       mv.seatOverride = n > 0 ? n : null;
       refreshSeatChip(tr.dataset.i);
-    } else if (f === 'crewpick' || f === 'crewfree') {
-      // handled on button click
+    } else if (f === 'crewquick') {
+      var picked = e.target.value;
+      if (!picked) return;
+      if (picked === '__free__') {
+        picked = String(prompt('שם הנוסע:') || '').trim();
+        if (!picked) { e.target.value = ''; return; }
+      }
+      if (!mv.crew) mv.crew = [];
+      if (mv.crew.indexOf(picked) === -1 &&
+          String(mv.driver).trim() !== picked &&
+          String(mv.vcommander).trim() !== picked) {
+        mv.crew.push(picked);
+      } else {
+        toast(picked + ' כבר משובץ ברכב זה');
+      }
+      renderConvoy(); updateSummary(); renderPeople(); save();
+      return;
     } else if (f) {
       mv[f] = e.target.value;
       if (f === 'driver' || f === 'vcommander') refreshSeatChip(tr.dataset.i);
@@ -1262,21 +1305,6 @@
     }
     var act = btn.dataset.act;
     if (act === 'plan') { arr[i].open = !arr[i].open; renderConvoy(); save(); return; }
-    if (act === 'crewadd' || act === 'crewaddfree') {
-      var sel = tr.querySelector(act === 'crewadd' ? '[data-f="crewpick"]' : '[data-f="crewfree"]');
-      var name = sel && String(sel.value).trim();
-      if (!name) return;
-      if (!arr[i].crew) arr[i].crew = [];
-      if (arr[i].crew.indexOf(name) === -1 &&
-          String(arr[i].driver).trim() !== name &&
-          String(arr[i].vcommander).trim() !== name) {
-        arr[i].crew.push(name);
-      } else {
-        toast(name + ' כבר משובץ ברכב זה');
-      }
-      renderConvoy(); updateSummary(); renderPeople(); save();
-      return;
-    }
     if (act === 'rm') arr.splice(i, 1);
     if (act === 'up' && i > 0) { var t = arr[i - 1]; arr[i - 1] = arr[i]; arr[i] = t; }
     if (act === 'down' && i < arr.length - 1) { var t2 = arr[i + 1]; arr[i + 1] = arr[i]; arr[i] = t2; }
@@ -1308,7 +1336,7 @@
       '<div class="stat"><div class="label">דולבים</div><div class="value">' + t.dolev + ' <small>/ ' + t.dolevCap + ' קיבולת</small></div></div>' +
       '<div class="stat"><div class="label">סולר (ליטר)</div><div class="value">' + t.fuel.toLocaleString() + '</div></div>' +
       (t.inactive ? '<div class="stat alert"><div class="label">שימו לב</div><div class="value" style="font-size:15px">' + t.inactive + ' רכבים מושבתים בשיירה</div></div>' : '');
-    updatePeopleSummary();
+    renderPeoplePool();
   }
 
   /* ---------------- Checklist ---------------- */
