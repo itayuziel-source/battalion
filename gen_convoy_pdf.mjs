@@ -16,6 +16,7 @@ const payload = JSON.parse(fs.readFileSync(payloadPath, 'utf-8'));
 const state = {
   unitName: payload.unitName || '',
   fleet: payload.fleet || [],
+  people: payload.people || [],
   mission: payload.mission,
   archive: []
 };
