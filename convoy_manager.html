@@ -393,10 +393,9 @@
 
   <nav class="tabs" role="tablist">
     <button class="tab-btn active" data-tab="fleet" role="tab"><span class="num">1</span> צי הרכבים</button>
-    <button class="tab-btn" data-tab="people" role="tab"><span class="num">2</span> כח אדם</button>
-    <button class="tab-btn" data-tab="prep" role="tab"><span class="num">3</span> הכנת משימה</button>
-    <button class="tab-btn" data-tab="report" role="tab"><span class="num">4</span> פקודת שיירה</button>
-    <button class="tab-btn" data-tab="archive" role="tab"><span class="num">5</span> ארכיון</button>
+    <button class="tab-btn" data-tab="prep" role="tab"><span class="num">2</span> הכנת משימה</button>
+    <button class="tab-btn" data-tab="report" role="tab"><span class="num">3</span> פקודת שיירה</button>
+    <button class="tab-btn" data-tab="archive" role="tab"><span class="num">4</span> ארכיון</button>
   </nav>
 
   <!-- ============ FLEET ============ -->
@@ -433,12 +432,31 @@
     </div>
   </section>
 
-  <!-- ============ PEOPLE ============ -->
-  <section class="pane" id="pane-people">
-    <div class="summary" id="peopleSummary"></div>
+  <!-- ============ PREP ============ -->
+  <section class="pane" id="pane-prep">
+    <div class="summary" id="summaryBar"></div>
+
     <div class="card">
-      <h2>מצבת כח אדם <span class="hint">רשימת האנשים הקבועה — משבצים אותם לרכבים בהכנת המשימה</span></h2>
-      <p class="lead">כל איש צוות מופיע פעם אחת. בעמודת "שיבוץ" רואים מי כבר משובץ לרכב במשימה הנוכחית ומי פנוי.</p>
+      <h2>פרטי המשימה</h2>
+      <div class="grid cols-3">
+        <div class="field"><label>כותרת המשימה <span class="req">*</span></label><input id="mTitle" type="text" placeholder='לדוגמה: שינוע תחמושת למוצב'></div>
+        <div class="field"><label>תאריך <span class="req">*</span></label><input id="mDate" type="date"></div>
+        <div class="field"><label>מפקד המשימה <span class="req">*</span></label><input id="mCommander" type="text" placeholder="דרגה + שם מלא"></div>
+        <div class="field"><label>שעת יציאה</label><input id="mDepart" type="time"></div>
+        <div class="field"><label>שעת חזרה משוערת</label><input id="mReturn" type="time"></div>
+        <div class="field"><label>ציר תנועה / מסלול</label><input id="mRoute" type="text" placeholder="נקודת יציאה ← יעד"></div>
+        <div class="field"><label>תדר קשר / ערוץ</label><input id="mFreq" type="text"></div>
+        <div class="field"><label>אות קריאה</label><input id="mCallsign" type="text"></div>
+        <div class="field"><label>מרווח נסיעה בין רכבים (מ')</label><input id="mGap" type="number" min="0" step="10" placeholder="50"></div>
+      </div>
+      <div class="grid cols-1" style="margin-top:12px">
+        <div class="field"><label>הערות כלליות למשימה</label><textarea id="mNotes" placeholder="נקודות עצירה, אילוצים, תיאומים..."></textarea></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2>מצבת כח אדם למשימה <span class="hint">מי יוצא — ומי כבר משובץ לרכב</span></h2>
+      <div class="summary" id="peopleSummary" style="margin-bottom:12px"></div>
       <div class="table-wrap">
         <table>
           <thead>
@@ -466,38 +484,15 @@
         </div>
         <button class="btn primary small" id="bulkAdd" style="margin-top:6px">הוסף את כולם</button>
       </div>
-    </div>
-    <datalist id="peopleList"></datalist>
-    <datalist id="rolesList">
-      <option value="נהג"></option>
-      <option value="מפקד רכב"></option>
-      <option value="לוחם"></option>
-      <option value="חובש"></option>
-      <option value="קשר"></option>
-      <option value="קצין"></option>
-    </datalist>
-  </section>
-
-  <!-- ============ PREP ============ -->
-  <section class="pane" id="pane-prep">
-    <div class="summary" id="summaryBar"></div>
-
-    <div class="card">
-      <h2>פרטי המשימה</h2>
-      <div class="grid cols-3">
-        <div class="field"><label>כותרת המשימה <span class="req">*</span></label><input id="mTitle" type="text" placeholder='לדוגמה: שינוע תחמושת למוצב'></div>
-        <div class="field"><label>תאריך <span class="req">*</span></label><input id="mDate" type="date"></div>
-        <div class="field"><label>מפקד המשימה <span class="req">*</span></label><input id="mCommander" type="text" placeholder="דרגה + שם מלא"></div>
-        <div class="field"><label>שעת יציאה</label><input id="mDepart" type="time"></div>
-        <div class="field"><label>שעת חזרה משוערת</label><input id="mReturn" type="time"></div>
-        <div class="field"><label>ציר תנועה / מסלול</label><input id="mRoute" type="text" placeholder="נקודת יציאה ← יעד"></div>
-        <div class="field"><label>תדר קשר / ערוץ</label><input id="mFreq" type="text"></div>
-        <div class="field"><label>אות קריאה</label><input id="mCallsign" type="text"></div>
-        <div class="field"><label>מרווח נסיעה בין רכבים (מ')</label><input id="mGap" type="number" min="0" step="10" placeholder="50"></div>
-      </div>
-      <div class="grid cols-1" style="margin-top:12px">
-        <div class="field"><label>הערות כלליות למשימה</label><textarea id="mNotes" placeholder="נקודות עצירה, אילוצים, תיאומים..."></textarea></div>
-      </div>
+      <datalist id="peopleList"></datalist>
+      <datalist id="rolesList">
+        <option value="נהג"></option>
+        <option value="מפקד רכב"></option>
+        <option value="לוחם"></option>
+        <option value="חובש"></option>
+        <option value="קשר"></option>
+        <option value="קצין"></option>
+      </datalist>
     </div>
 
     <div class="card">
@@ -679,8 +674,7 @@
     });
     if (name === 'report') renderReport();
     if (name === 'archive') renderArchive();
-    if (name === 'people') renderPeople();
-    if (name === 'prep') { renderPicker(); updateSummary(); }
+    if (name === 'prep') { renderPeople(); renderPicker(); updateSummary(); }
   }
   tabs.forEach(function (b) {
     b.addEventListener('click', function () { showTab(b.dataset.tab); });
@@ -1253,6 +1247,7 @@
       chip.classList.toggle('neutral', used <= cap);
     }
     updateSummary();
+    renderPeople();
   }
 
   $('#convoyBody').addEventListener('click', function (e) {
@@ -1262,7 +1257,7 @@
     var arr = state.mission.vehicles;
     if (btn.dataset.crewrm != null) {
       arr[i].crew.splice(+btn.dataset.crewrm, 1);
-      renderConvoy(); updateSummary(); save();
+      renderConvoy(); updateSummary(); renderPeople(); save();
       return;
     }
     var act = btn.dataset.act;
@@ -1279,7 +1274,7 @@
       } else {
         toast(name + ' כבר משובץ ברכב זה');
       }
-      renderConvoy(); updateSummary(); save();
+      renderConvoy(); updateSummary(); renderPeople(); save();
       return;
     }
     if (act === 'rm') arr.splice(i, 1);
